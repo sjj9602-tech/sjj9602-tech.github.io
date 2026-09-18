@@ -310,6 +310,13 @@ const MODELS = [
     note: '콘솔 표시 할인가 $0.0715/초(정가 $0.13). 2K 고정.',
     body(ctx) { const b = { prompt: ctx.fullPrompt, duration: ctx.duration, resolution: '2K', aspect_ratio: ctx.aspect };
       if (ctx.image) b.image_url = ctx.image.publicUrl; return b; } },
+  { id: 'hf:bytedance/seedance-2.5', provider: 'higgsfield', kind: 'hf', label: 'Seedance 2.5',
+    modes: ['t2v', 'i2v'], aspects: ['9:16', '16:9', '1:1'], durations: [...range(4, 15), 20, 25, 30], resolutions: ['720p', '480p'],
+    audio: 'toggle', perSec: { '480p': 0.2205, '720p': 0.4730 }, approx: true,
+    endpoints: { t2v: 'bytedance/seedance-2.5/text-to-video', i2v: 'bytedance/seedance-2.5/image-to-video' },
+    note: '4~30초를 한 편으로. 정가 기준 초당 약 $0.21(480p)·$0.47(720p). 콘솔 할인이 있으면 견적이 더 싸게 나옵니다.',
+    body(ctx) { const b = { prompt: ctx.fullPrompt, duration: ctx.duration, resolution: ctx.resolution, generate_audio: ctx.audio };
+      if (ctx.image) b.image_url = ctx.image.publicUrl; else b.aspect_ratio = ctx.aspect; return b; } },
   { id: 'hf:bytedance/seedance-2.0', provider: 'higgsfield', kind: 'hf', label: 'Seedance 2.0',
     modes: ['t2v', 'i2v'], aspects: ['9:16', '16:9', '1:1'], durations: range(4, 15), resolutions: ['720p', '480p', '1080p', '4k'],
     audio: 'toggle', perSec: { '480p': 0.0985, '720p': 0.0985, '1080p': 0.0985, '4k': 0.0985 }, approx: true,
@@ -727,7 +734,8 @@ async function runHf(m, ctx, key, signal) {
   setStatus('견적 확인 중…', true);
   let est = null;
   try { est = await http(`${BASES.higgsfield}/estimate/${path}`, { method: 'POST', headers: hdr, body, signal }); } catch (e) { if (e && e.name === 'AbortError') throw e; }
-  setStatus('주문 보내는 중…', true);
+  const estText = est && (est.usd != null ? `$${Number(est.usd).toFixed(3)}` : est.credits != null ? `${est.credits} 크레딧` : null);
+  setStatus(estText ? `견적 ${estText} · 주문 보내는 중…` : '주문 보내는 중…', true);
   const sub = await http(`${BASES.higgsfield}/${path}`, { method: 'POST', headers: hdr, body, signal });
   if (!sub || !sub.request_id) throw new ApiError('요청 번호를 받지 못했어요.', 0, sub);
   const rid = sub.request_id;
@@ -747,7 +755,6 @@ async function runHf(m, ctx, key, signal) {
   setStatus('영상 내려받는 중…', true);
   let blob = null;
   try { blob = await fetchBlob(url, {}, signal); } catch (e) { if (e && e.name === 'AbortError') throw e; }
-  const estText = est && (est.usd != null ? `$${Number(est.usd).toFixed(3)}` : est.credits != null ? `${est.credits} 크레딧` : null);
   return { blob, url, ref: rid, needsKey: false, estText };
 }
 
