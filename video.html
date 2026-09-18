@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>영상 생성기 — 말랑누스</title>
+<meta name="description" content="내 API 키로 텍스트나 이미지에서 짧은 세로 영상을 만드는 개인용 페이지">
+<style>
+  :root {
+    color-scheme: light;
+    --bg:#f7f8fa; --card:#fff; --ink:#1a1d23; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#1d4ed8; --accent-ink:#fff; --warn-bg:#fff7ed; --warn-line:#fdba74; --warn-ink:#9a3412;
+    --err-bg:#fef2f2; --err-line:#fca5a5; --err-ink:#991b1b; --ok-bg:#f0fdf4; --ok-line:#86efac; --ok-ink:#166534;
+    --chip:#f1f3f5;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:32px 16px 48px; background:var(--bg); color:var(--ink);
+         font-family:"Malgun Gothic","맑은 고딕",-apple-system,system-ui,sans-serif; line-height:1.65; }
+  main { max-width:720px; margin:0 auto; background:var(--card); padding:28px 22px;
+         border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  @media (min-width:640px) { body { padding:48px 20px; } main { padding:40px 40px; } }
+  h1 { font-size:24px; margin:0 0 4px; letter-spacing:-.5px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 22px; }
+  h2 { font-size:16px; margin:26px 0 10px; }
+  p { margin:8px 0; }
+  a { color:var(--accent); }
+  label { display:block; font-weight:700; font-size:14px; margin:14px 0 6px; }
+  .hint { color:var(--muted); font-size:13px; font-weight:400; margin:4px 0 0; }
+  input[type=text], input[type=password], textarea, select {
+    width:100%; font:inherit; font-size:15px; padding:10px 12px; border:1px solid var(--line);
+    border-radius:10px; background:#fff; color:var(--ink); }
+  textarea { min-height:96px; resize:vertical; }
+  input:focus, textarea:focus, select:focus { outline:2px solid var(--accent); outline-offset:1px; border-color:transparent; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .row > * { flex:1 1 140px; }
+  .keyrow { display:flex; gap:8px; }
+  .keyrow input { flex:1; }
+  button { font:inherit; font-size:15px; padding:10px 16px; border-radius:10px; border:1px solid var(--line);
+           background:#fff; color:var(--ink); cursor:pointer; }
+  button:hover { background:#f9fafb; }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:700; }
+  button.primary:hover { background:#1e40af; }
+  button.small { font-size:13px; padding:6px 10px; }
+  .tabs { display:flex; gap:6px; border-bottom:1px solid var(--line); margin-top:8px; }
+  .tabs button { border:none; border-bottom:3px solid transparent; border-radius:0; background:none; padding:8px 12px; color:var(--muted); font-weight:700; }
+  .tabs button[aria-selected=true] { color:var(--accent); border-bottom-color:var(--accent); }
+  .panel[hidden] { display:none; }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding:18px; text-align:center; color:var(--muted); font-size:14px; }
+  .drop.over { border-color:var(--accent); background:#eff6ff; }
+  .drop img { max-width:100%; max-height:260px; border-radius:8px; display:block; margin:0 auto 8px; }
+  .notice { border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13.5px; margin:10px 0; }
+  .notice.warn { background:var(--warn-bg); border-color:var(--warn-line); color:var(--warn-ink); }
+  .notice.err { background:var(--err-bg); border-color:var(--err-line); color:var(--err-ink); }
+  .notice.ok { background:var(--ok-bg); border-color:var(--ok-line); color:var(--ok-ink); }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .chip { background:var(--chip); border-radius:999px; padding:3px 10px; font-size:12.5px; color:#374151; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; align-items:center; }
+  .status { font-size:14px; color:var(--muted); }
+  .result video { width:100%; max-height:70vh; background:#000; border-radius:12px; display:block; }
+  .result .meta { font-size:13px; color:var(--muted); margin-top:8px; word-break:break-all; }
+  details { margin-top:10px; }
+  summary { cursor:pointer; font-weight:700; font-size:14px; }
+  code { background:var(--chip); padding:1px 6px; border-radius:4px; font-size:13px; }
+  ol { padding-left:20px; } li { margin:4px 0; }
+  .history li { font-size:13.5px; }
+  .links { margin-top:30px; padding-top:18px; border-top:1px solid var(--line); }
+  .links a { display:inline-block; margin-right:18px; font-weight:700; }
+  footer { max-width:720px; margin:22px auto 0; color:#9aa1ab; font-size:13px; }
+  .sr { position:absolute; left:-9999px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>영상 생성기</h1>
+  <p class="sub">텍스트나 이미지 한 장으로 짧은 영상을 만드는 개인용 페이지. 영상은 구글 Veo(Gemini API)가 만들고, 이 페이지는 주문서를 보내고 결과를 받아옵니다.</p>
+
+  <div class="notice warn" id="keyNotice">
+    <strong>API 키는 이 브라우저 안에만 저장됩니다.</strong> 서버가 없어서 키가 밖으로 나가지 않지만, 공용 PC에서는 "저장" 체크를 끄고 쓰세요.
+    영상 1편마다 구글에 요금이 청구됩니다(아래 "요금과 준비" 참고).
+  </div>
+
+  <h2>1. API 키</h2>
+  <label for="apiKey">Gemini API 키 <span class="hint">Google AI Studio에서 발급. 결제가 켜진 프로젝트여야 Veo가 됩니다.</span></label>
+  <div class="keyrow">
+    <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza… 로 시작하는 키">
+    <button type="button" id="toggleKey" class="small" aria-label="키 보이기/숨기기">보기</button>
+    <button type="button" id="clearKey" class="small">지우기</button>
+  </div>
+  <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:14px;margin-top:8px">
+    <input type="checkbox" id="rememberKey"> 이 브라우저에 키 저장
+  </label>
+
+  <h2>2. 만들 내용</h2>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tabText" aria-selected="true" aria-controls="panelText">텍스트 → 영상</button>
+    <button type="button" role="tab" id="tabImage" aria-selected="false" aria-controls="panelImage">이미지 → 영상</button>
+  </div>
+
+  <div class="panel" id="panelImage" role="tabpanel" hidden>
+    <label>시작 이미지 <span class="hint">JPG·PNG·WebP. 이 사진이 영상의 첫 장면이 됩니다.</span></label>
+    <div class="drop" id="drop" tabindex="0">
+      <img id="preview" alt="" hidden>
+      <div id="dropText">여기에 이미지를 끌어다 놓거나 <u>눌러서 선택</u></div>
+      <input type="file" id="imageFile" accept="image/jpeg,image/png,image/webp" class="sr">
+      <div class="chips" id="imageMeta" hidden></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panelText" role="tabpanel">
+  </div>
+
+  <label for="prompt">프롬프트 <span class="hint">장면·인물·동작·카메라 움직임을 문장으로. 한국어도 됩니다.</span></label>
+  <textarea id="prompt" placeholder="예) 비 내리는 밤거리, 우산을 든 사람이 카메라 쪽으로 천천히 걸어온다. 네온 불빛 반사, 영화 같은 느낌."></textarea>
+
+  <label for="negative">빼고 싶은 것 <span class="hint">선택. 예) 글자, 워터마크, 흐릿함</span></label>
+  <input id="negative" type="text" placeholder="선택 사항">
+
+  <div class="row">
+    <div>
+      <label for="model">모델</label>
+      <select id="model"></select>
+    </div>
+    <div>
+      <label for="aspect">화면 비율</label>
+      <select id="aspect"></select>
+    </div>
+    <div>
+      <label for="duration">길이(초)</label>
+      <select id="duration"></select>
+    </div>
+    <div>
+      <label for="resolution">해상도</label>
+      <select id="resolution"></select>
+    </div>
+  </div>
+  <p class="hint" id="costHint"></p>
+
+  <div class="actions">
+    <button type="button" class="primary" id="generate">영상 만들기</button>
+    <button type="button" id="cancel" hidden>중단</button>
+    <span class="status" id="status" role="status" aria-live="polite"></span>
+  </div>
+  <div id="message"></div>
+
+  <div class="result" id="result" hidden>
+    <h2>결과</h2>
+    <video id="video" controls playsinline preload="metadata"></video>
+    <div class="actions">
+      <a id="download" class="small" download="video.mp4"><button type="button" class="small">내려받기</button></a>
+      <button type="button" class="small" id="again">같은 설정으로 다시</button>
+    </div>
+    <div class="meta" id="resultMeta"></div>
+  </div>
+
+  <details>
+    <summary>이번 브라우저에서 만든 목록</summary>
+    <ul class="history" id="history"></ul>
+    <button type="button" class="small" id="clearHistory">목록 지우기</button>
+  </details>
+
+  <h2>요금과 준비</h2>
+  <div id="pricing"></div>
+
+  <details>
+    <summary>키를 이 사이트에서만 쓰게 잠그기(권장)</summary>
+    <div id="keyLock"></div>
+  </details>
+
+  <div class="links">
+    <a href="./index.html">홈</a>
+    <a href="./privacy.html">개인정보처리방침</a>
+    <a href="./terms.html">이용약관</a>
+  </div>
+</main>
+<footer>
+  <p>개인용 도구입니다. 생성된 영상과 입력한 내용은 이 페이지의 운영자에게 전송되지 않으며, 구글 Gemini API로만 보내집니다.</p>
+</footer>
+
+<script>
+/* ===== provider adapters are filled in below ===== */
+</script>
+</body>
+</html>
