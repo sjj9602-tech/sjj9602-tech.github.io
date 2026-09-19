@@ -122,7 +122,10 @@ class UpbitBroker(Broker):
 
     def buy_market(self, symbol: str, krw_cost: float) -> dict:
         # ord_type=price: 금액(KRW)으로 시장가 매수. ccxt: createOrder(type='market', side='buy', params={'cost': KRW})
-        order = self.ex.create_order(symbol, "market", "buy", None, None, {"cost": float(krw_cost)})
+        krw_cost = float(int(krw_cost))  # 업비트 KRW 금액은 정수 원 단위로 보낸다
+        if krw_cost < self.min_notional(symbol):
+            raise ValueError(f"주문 금액 {krw_cost:,.0f}원이 최소 주문 금액 {self.min_notional(symbol):,.0f}원보다 작습니다")
+        order = self.ex.create_order(symbol, "market", "buy", None, None, {"cost": krw_cost})
         o = self._wait_fill(order["id"], symbol)
         filled = float(o.get("filled") or 0.0)
         avg = float(o.get("average") or 0.0)
