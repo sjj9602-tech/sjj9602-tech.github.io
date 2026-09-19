@@ -1,0 +1,38 @@
+# accumbot 설정 예시. 복사해서 config.yaml 로 저장하고 고치세요.
+# 기본은 모의(paper). 실거래는 mode: live 와 환경변수 UPBIT_ACCESS_KEY / UPBIT_SECRET_KEY 가 모두 있어야 켜집니다.
+
+mode: paper              # paper | live
+source: upbit            # upbit (코인, 실거래 가능) | yfinance (주식, 모의·스캔 전용)
+symbols: ["BTC/KRW", "ETH/KRW", "XRP/KRW", "SOL/KRW"]
+timeframe: 1d            # 1d 권장 (영상의 "며칠 동안" 기준). 4h 도 가능
+history_days: 400
+state_file: state/state.json
+
+paper_cash: 1000000      # 모의 시작 자본(원)
+risk_pct: 0.01           # 한 번 진입에 거는 위험 = 자본의 1% (진입가-손절가 기준)
+max_position_pct: 0.3    # 한 종목 최대 명목 = 자본의 30%
+max_positions: 3
+fee_bps: 5               # 업비트 0.05%
+slippage_bps: 5
+min_notional: 5000       # 업비트 최소 주문 금액(원)
+lot_size: 0              # 코인 0(소수 허용). 주식이면 1
+
+strategy:
+  zone_lookback: 15        # 매집 구간 길이(봉)
+  zone_max_width: 0.08     # 구간 (고-저)/저 ≤ 8%
+  cluster_band: 0.03       # 종가가 구간 VWAP ±3% 안이면 "같은 가격"
+  cluster_min_ratio: 0.7   # 그런 봉이 70% 이상
+  vol_lookback: 60
+  vol_ratio_min: 1.0       # 구간 평균 거래량 ≥ 이전 60봉 평균 × 1.0
+  flow_indicator: obv      # obv | adl | none
+  flow_min_slope: 0
+  breakout_buffer: 0.005   # 구간 고점 +0.5% 위에서 마감
+  breakout_vol_lookback: 20
+  breakout_vol_ratio: 1.0  # 돌파 봉 거래량 ≥ 20봉 평균 × 1.0 (1.5 이상은 민감도 표에서 성과가 나빠졌음)
+  atr_period: 14
+  stop_atr_mult: 0.5       # 손절 = 구간 저점 − 0.5×ATR
+  max_stop_pct: 0.12       # 손절 거리 12% 초과면 진입 안 함
+  tp_r_multiple: 2.0       # 익절 = 진입 + 2R
+  breakeven_r: 1.0         # +1R 찍으면 손절을 진입가로
+  trail_atr_mult: 0        # 0 = 트레일링 끔 (예: 2.0)
+  time_stop_bars: 20       # 20봉 지나면 청산
