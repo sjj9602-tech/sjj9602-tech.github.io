@@ -210,7 +210,9 @@
 'use strict';
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
-const MOCK = qs.get('mock'); // 테스트용: 모든 API 주소를 이 주소 아래로 돌린다 (예: ?mock=http://localhost:8787)
+// 테스트용: 로컬에서 열었을 때만 ?mock= 으로 API 주소를 바꿀 수 있다 (공개 주소에서는 무시 — 링크로 키를 빼돌리지 못하게)
+const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) || location.protocol === 'file:';
+const MOCK = LOCAL ? qs.get('mock') : null;
 const BASES = {
   google: MOCK ? MOCK + '/google' : 'https://generativelanguage.googleapis.com',
   fal: MOCK ? MOCK + '/fal' : 'https://queue.fal.run',

@@ -1,0 +1,1420 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>나레이션 생성기 — 말랑누스</title>
+<meta name="description" content="내 API 키로 대본을 쇼츠용 나레이션 음성(MP3/WAV)으로 바꾸는 개인용 페이지">
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    color-scheme: light;
+    --bg:#f7f8fa; --card:#fff; --ink:#1a1d23; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#1d4ed8; --accent-ink:#fff; --warn-bg:#fff7ed; --warn-line:#fdba74; --warn-ink:#9a3412;
+    --err-bg:#fef2f2; --err-line:#fca5a5; --err-ink:#991b1b; --ok-bg:#f0fdf4; --ok-line:#86efac; --ok-ink:#166534;
+    --chip:#f1f3f5;
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; padding:32px 16px 48px; background:var(--bg); color:var(--ink);
+         font-family:"Malgun Gothic","맑은 고딕",-apple-system,system-ui,sans-serif; line-height:1.65; }
+  main { max-width:720px; margin:0 auto; background:var(--card); padding:28px 22px;
+         border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  @media (min-width:640px) { body { padding:48px 20px; } main { padding:40px 40px; } }
+  h1 { font-size:24px; margin:0 0 4px; letter-spacing:-.5px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 22px; }
+  h2 { font-size:16px; margin:26px 0 10px; }
+  h3 { font-size:14px; margin:14px 0 6px; }
+  p { margin:8px 0; }
+  a { color:var(--accent); }
+  label { display:block; font-weight:700; font-size:14px; margin:14px 0 6px; }
+  .hint { color:var(--muted); font-size:13px; font-weight:400; margin:4px 0 0; }
+  input[type=text], input[type=password], input[type=number], textarea, select {
+    width:100%; font:inherit; font-size:15px; padding:10px 12px; border:1px solid var(--line);
+    border-radius:10px; background:#fff; color:var(--ink); }
+  textarea { min-height:120px; resize:vertical; }
+  textarea.small { min-height:80px; font-size:14px; }
+  input:focus, textarea:focus, select:focus { outline:2px solid var(--accent); outline-offset:1px; border-color:transparent; }
+  input[type=range] { width:100%; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .row > * { flex:1 1 140px; min-width:0; }
+  .row label { margin-top:10px; }
+  .keyrow { display:flex; gap:8px; }
+  .keyrow input, .keyrow select { flex:1; min-width:0; }
+  button { font:inherit; font-size:15px; padding:10px 16px; border-radius:10px; border:1px solid var(--line);
+           background:#fff; color:var(--ink); cursor:pointer; }
+  button:hover { background:#f9fafb; }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:700; }
+  button.primary:hover { background:#1e40af; }
+  button.small, .btn.small { font-size:13px; padding:6px 10px; }
+  .btn { display:inline-block; font:inherit; font-size:15px; padding:10px 16px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--ink); text-decoration:none; }
+  .btn:hover { background:#f9fafb; }
+  .notice { border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13.5px; margin:10px 0; }
+  .notice.warn { background:var(--warn-bg); border-color:var(--warn-line); color:var(--warn-ink); }
+  .notice.err { background:var(--err-bg); border-color:var(--err-line); color:var(--err-ink); }
+  .notice.ok { background:var(--ok-bg); border-color:var(--ok-line); color:var(--ok-ink); }
+  .notice pre { white-space:pre-wrap; word-break:break-all; font-size:12px; margin:6px 0 0; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .chip { background:var(--chip); border-radius:999px; padding:3px 10px; font-size:12.5px; color:#374151; border:none; cursor:pointer; }
+  .chip:hover { background:#e5e7eb; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; align-items:center; }
+  .status { font-size:14px; color:var(--muted); }
+  .result audio { width:100%; display:block; }
+  .result .meta { font-size:13px; color:var(--muted); margin-top:8px; word-break:break-all; }
+  details { margin-top:10px; }
+  summary { cursor:pointer; font-weight:700; font-size:14px; }
+  code { background:var(--chip); padding:1px 6px; border-radius:4px; font-size:13px; }
+  ol, ul { padding-left:20px; } li { margin:4px 0; }
+  table { border-collapse:collapse; width:100%; font-size:13.5px; margin:8px 0; }
+  th, td { border-bottom:1px solid var(--line); padding:6px 6px; text-align:left; vertical-align:top; }
+  th { background:#f9fafb; font-weight:700; }
+  @media (max-width:640px) {
+    table.stack thead { display:none; }
+    table.stack, table.stack tbody, table.stack tr, table.stack td { display:block; width:100%; }
+    table.stack tr { border:1px solid var(--line); border-radius:10px; padding:6px 10px; margin:8px 0; }
+    table.stack td { border:none; padding:3px 0; }
+    table.stack td::before { content:attr(data-label) ' '; color:var(--muted); font-size:12.5px; }
+    table.stack td:first-child { font-weight:700; } table.stack td:first-child::before { content:''; }
+  }
+  .history li { font-size:13.5px; }
+  .links { margin-top:30px; padding-top:18px; border-top:1px solid var(--line); }
+  .links a { display:inline-block; margin-right:18px; font-weight:700; }
+  footer { max-width:720px; margin:22px auto 0; color:#9aa1ab; font-size:13px; }
+  .sr { position:absolute; left:-9999px; }
+  .cost { font-weight:700; color:var(--ink); }
+  .inline { display:flex; align-items:center; gap:8px; font-weight:400; font-size:14px; margin-top:8px; }
+  .vlist { list-style:none; padding:0; margin:8px 0 0; }
+  .vlist li { border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin:6px 0; font-size:13.5px; }
+  .vlist .n { font-weight:700; }
+  .vlist .tags { color:var(--muted); font-size:12.5px; }
+  .vlist audio { width:100%; margin-top:6px; }
+  .vlist .act { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; align-items:center; }
+    .rangeval { font-weight:400; color:var(--muted); font-size:13px; }
+  .tabs { display:flex; gap:6px; border-bottom:1px solid var(--line); margin-top:8px; }
+  .tabs button { border:none; border-bottom:3px solid transparent; border-radius:0; background:none; padding:8px 12px; color:var(--muted); font-weight:700; }
+  .tabs button[aria-selected=true] { color:var(--accent); border-bottom-color:var(--accent); }
+  .cast { display:grid; grid-template-columns:minmax(70px,1fr) 2fr; gap:8px 10px; align-items:center; margin:8px 0; }
+  .cast .nm { font-weight:700; font-size:14px; word-break:break-all; }
+  .cast .vsel { display:flex; gap:6px; }
+  .cast .vsel select { flex:2; min-width:0; } .cast .vsel input { flex:1; min-width:14ch; font-size:13px; }
+  @media (max-width:640px) { .cast { grid-template-columns:1fr; gap:4px 0; } .cast .nm { margin-top:8px; } .cast .vsel { flex-wrap:wrap; } .cast .vsel select, .cast .vsel input { flex:1 1 100%; } }
+  .counter { font-size:13px; color:var(--muted); text-align:right; margin-top:4px; }
+  .counter.over { color:var(--err-ink); font-weight:700; }
+</style>
+</head>
+<body>
+<main>
+  <h1>나레이션 생성기</h1>
+  <p class="sub">대본을 붙여 넣으면 쇼츠용 나레이션 음성 파일이 나오는 개인용 페이지. 음성은 ElevenLabs·Typecast·구글 Gemini의 API가 만들고, 이 페이지는 주문서를 보내고 결과를 받아옵니다.</p>
+
+  <div class="notice warn">
+    <strong>API 키는 이 브라우저 안에만 저장됩니다.</strong> 이 페이지에는 서버가 없어서 키가 운영자에게도 가지 않습니다. 공용 PC에서는 "저장" 체크를 끄고 쓰세요.
+    글자 수만큼 선택한 회사의 크레딧이나 요금이 나갑니다(아래 "요금과 준비" 참고).
+  </div>
+
+  <h2>1. 서비스·모델</h2>
+  <label for="model">모델 <span class="hint">회사별로 키가 다릅니다. 고르면 아래 키 칸과 목소리 목록이 바뀌어요.</span></label>
+  <select id="model"></select>
+  <p class="hint" id="modelNote"></p>
+
+  <h2>2. API 키</h2>
+  <label for="apiKey"><span id="keyLabel">API 키</span> <span class="hint" id="keyHelp"></span></label>
+  <div class="keyrow">
+    <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="">
+    <button type="button" id="toggleKey" class="small" aria-pressed="false">보기</button>
+    <button type="button" id="clearKey" class="small">지우기</button>
+  </div>
+  <label class="inline"><input type="checkbox" id="rememberKey"> 이 브라우저에 키 저장</label>
+
+  <h2>3. 목소리</h2>
+  <p class="notice" id="roleVoiceNote" hidden>역할극에서는 목소리를 아래 <strong>배역 → 목소리</strong> 표에서 배역마다 고릅니다. 여기서는 불러오기·찾기·만들기만 하세요.</p>
+
+  <!-- ElevenLabs -->
+  <div class="prov" id="provElevenlabs" hidden>
+    <label for="elVoice">내 목소리 <span class="hint">계정에 있는 목소리(기본·복제·설계). 처음이면 "불러오기"를 누르세요.</span></label>
+    <div class="keyrow">
+      <select id="elVoice"><option value="">— 불러오기를 누르세요 —</option></select>
+      <button type="button" id="elLoad" class="small">불러오기</button>
+    </div>
+    <div class="row" id="elManualRow">
+      <div><label for="elManual">또는 voice_id 직접 입력 <span class="hint">위 목록보다 우선합니다.</span></label><input id="elManual" type="text" placeholder="예) JBFqnCBsd6RMkjVDRZzb" spellcheck="false"></div>
+    </div>
+    <div id="elPreviewWrap" hidden><audio id="elPreview" controls preload="none"></audio></div>
+
+    <details id="elLibrary">
+      <summary>라이브러리에서 한국어 목소리 찾기</summary>
+      <p class="hint">다른 사람이 공유한 목소리. 마음에 들면 "내 목록에 추가"를 눌러야 쓸 수 있어요. 무료 플랜은 라이브러리 목소리를 API로 못 씁니다.</p>
+      <div class="row">
+        <div><label for="libGender">성별</label><select id="libGender"><option value="male">남성</option><option value="female">여성</option><option value="">전체</option></select></div>
+        <div><label for="libAge">나이대</label><select id="libAge"><option value="">전체</option><option value="young">젊음</option><option value="middle_aged">중년</option><option value="old">노년</option></select></div>
+        <div><label for="libSearch">검색어</label><input id="libSearch" type="text" placeholder="예) energetic, youtube"></div>
+      </div>
+      <div class="actions"><button type="button" id="libFind" class="small">찾기</button><span class="status" id="libStatus" aria-live="polite"></span></div>
+      <ul class="vlist" id="libList"></ul>
+    </details>
+
+    <details id="elDesign">
+      <summary>설명문으로 목소리 만들기 (Voice Design)</summary>
+      <p class="hint">원하는 목소리를 문장으로 적으면 후보 3개를 만들어 줍니다. 미리듣기 글자 수만큼 한 번 과금됩니다. 마음에 드는 후보를 저장하면 "내 목소리"에 들어갑니다.</p>
+      <label for="vdDesc">목소리 설명 (20~1000자, 첫 문장에 언어를 적으세요)</label>
+      <textarea id="vdDesc" class="small">Native Korean. Male, 25-32. Excellent audio quality. Persona: hyped YouTube Shorts narrator talking to a close friend in casual banmal. Low, slightly husky pitch. Speaks extremely fast with punchy energy, rising intonation on questions, playful and a bit cheeky, with spontaneous laughs and interjections.</textarea>
+      <label for="vdText">미리듣기 대본 (100~1000자)</label>
+      <textarea id="vdText" class="small">여기 있는 게 수성이거든요? 근데 얘 태양이랑 진짜 미친 듯이 가깝습니다. 낮에는 430도까지 올라가는데요? 여기 사람이 가면 바로 바비큐가 돼 버립니다. 근데 또 밤이 되잖아요? 엄청나게 추워져요. 이유는 여긴 대기가 거의 없기 때문이죠. 그래서 열이 하나도 안 퍼지게 됩니다. 근데 또 진짜 웃긴 건 1년이 개 짧다는 겁니다. 수성에서 1년은 88일이에요.</textarea>
+      <div class="row">
+        <div><label for="vdGuidance">설명 충실도 <span class="rangeval" id="vdGuidanceVal">5</span> <span class="hint">낮을수록 자연스럽고, 높을수록 설명에 딱 맞추지만 부자연스러울 수 있음</span></label><input id="vdGuidance" type="range" min="0" max="40" step="1" value="5"></div>
+      </div>
+      <div class="actions"><button type="button" id="vdMake" class="small">후보 3개 만들기</button><span class="status" id="vdStatus" aria-live="polite"></span></div>
+      <ul class="vlist" id="vdList"></ul>
+    </details>
+  </div>
+
+  <!-- Typecast -->
+  <div class="prov" id="provTypecast" hidden>
+    <div class="row">
+      <div><label for="tcGender">성별</label><select id="tcGender"><option value="male">남성</option><option value="female">여성</option><option value="">전체</option></select></div>
+      <div><label for="tcAge">나이대</label><select id="tcAge"><option value="">전체</option><option value="young_adult">청년</option><option value="teenager">10대</option><option value="middle_age">중년</option><option value="elder">노년</option><option value="child">아동</option></select></div>
+      <div><label for="tcUse">용도</label><select id="tcUse"><option value="">전체</option><option value="shorts">쇼츠·릴스</option><option value="conversational">대화</option><option value="narration">나레이션·다큐·뉴스</option></select></div>
+    </div>
+    <label for="tcVoice">목소리 <span class="hint">처음이면 "불러오기"를 누르세요. 이름 뒤 괄호는 나이대·용도.</span></label>
+    <div class="keyrow">
+      <select id="tcVoice"><option value="">— 불러오기를 누르세요 —</option></select>
+      <button type="button" id="tcLoad" class="small">불러오기</button>
+    </div>
+    <div id="tcPreviewWrap" hidden><audio id="tcPreview" controls preload="none"></audio></div>
+    <div id="tcManualRow"><label for="tcManual">또는 voice_id 직접 입력 <span class="hint">tc_ 또는 uc_ 로 시작. 위 목록보다 우선합니다.</span></label>
+    <input id="tcManual" type="text" placeholder="예) tc_672c5f5ce59fac2a48faeaee" spellcheck="false"></div>
+  </div>
+
+  <!-- Google -->
+  <div class="prov" id="provGoogle" hidden>
+    <div id="ggVoiceRow">
+    <label for="ggVoice">목소리 <span class="hint">구글은 30개 고정. 성별·음높이는 문서에 없으니 <a href="https://aistudio.google.com/generate-speech" target="_blank" rel="noopener">AI Studio</a>에서 들어보고 고르세요.</span></label>
+    <select id="ggVoice"></select>
+    </div>
+  </div>
+
+  <h2>4. 대본</h2>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tabSolo" aria-selected="true">혼자 읽기</button>
+    <button type="button" role="tab" id="tabRole" aria-selected="false">역할극 (여러 목소리)</button>
+  </div>
+  <label for="script">읽을 글 <span class="hint" id="scriptHint">말하는 그대로 적으세요. 숫자는 한글로 풀어 쓰면(예: 430도 → 사백삼십 도) 어느 모델이든 안전합니다.</span></label>
+  <textarea id="script" placeholder="예) 여기 있는 게 수성이거든요? 근데 얘 태양이랑 진짜 가깝습니다."></textarea>
+  <div class="counter" id="counter"></div>
+  <div class="chips" id="tagChips"></div>
+  <p class="hint" id="tagHint"></p>
+  <div id="castWrap" hidden>
+    <h3>배역 → 목소리 <span class="hint">대본에서 찾은 이름마다 목소리를 고르세요. 이름은 줄 앞에 <code>이름:</code> 으로 적고, 이름 없는 줄은 바로 앞 사람이 이어 말합니다.</span></h3>
+    <div id="castList" class="cast"></div>
+    <p class="hint" id="castHint"></p>
+    <button type="button" class="small" id="roleExample">예시 대본 넣기</button>
+  </div>
+
+  <h2>5. 말투</h2>
+  <label for="preset">프리셋</label>
+  <select id="preset">
+    <option value="shorts">쇼츠 반말 빠르게 (추천)</option>
+    <option value="calm">차분한 나레이션</option>
+    <option value="custom">직접 설정</option>
+  </select>
+  <p class="hint" id="presetNote"></p>
+
+  <div class="set" id="setElevenlabs" hidden>
+    <div class="row">
+      <div id="elStabWrap"><label for="elStability">안정성 <span class="rangeval" id="elStabilityVal"></span> <span class="hint">낮을수록 감정 기복이 큼</span></label><input id="elStability" type="range" min="0" max="1" step="0.05" value="0.35"></div>
+      <div id="elV3StabWrap" hidden><label for="elV3Stability">표현 폭 (v3)</label><select id="elV3Stability"><option value="0">Creative — 가장 풍부, 가끔 엉뚱</option><option value="0.5" selected>Natural — 균형</option><option value="1">Robust — 안정, 태그 반응 약함</option></select></div>
+      <div id="elSimWrap"><label for="elSimilarity">원음 유사도 <span class="rangeval" id="elSimilarityVal"></span></label><input id="elSimilarity" type="range" min="0" max="1" step="0.05" value="0.8"></div>
+    </div>
+    <div class="row">
+      <div id="elStyleWrap"><label for="elStyle">스타일 과장 <span class="rangeval" id="elStyleVal"></span></label><input id="elStyle" type="range" min="0" max="1" step="0.05" value="0.5"></div>
+      <div id="elSpeedWrap"><label for="elSpeed">속도 <span class="rangeval" id="elSpeedVal"></span> <span class="hint">API 한계 0.7~1.2배</span></label><input id="elSpeed" type="range" min="0.7" max="1.2" step="0.05" value="1.2"></div>
+    </div>
+    <label class="inline"><input type="checkbox" id="elBoost" checked> 화자 유사도 보정(speaker boost)</label>
+  </div>
+
+  <div class="set" id="setTypecast" hidden>
+    <div class="row">
+      <div><label for="tcEmotion">감정</label><select id="tcEmotion">
+        <option value="smart">문맥 자동 (Smart)</option>
+        <option value="normal">보통</option><option value="happy">기쁨</option><option value="sad">슬픔</option><option value="angry">화남</option>
+        <option value="whisper">속삭임</option><option value="toneup">톤 업</option><option value="tonedown">톤 다운</option>
+      </select><p class="hint" id="tcEmotionHint"></p></div>
+      <div><label for="tcIntensity">감정 강도 <span class="rangeval" id="tcIntensityVal"></span></label><input id="tcIntensity" type="range" min="0" max="2" step="0.1" value="1"></div>
+    </div>
+    <div class="row">
+      <div><label for="tcTempo">속도 <span class="rangeval" id="tcTempoVal"></span> <span class="hint">0.5~2.0배</span></label><input id="tcTempo" type="range" min="0.5" max="2" step="0.05" value="1.5"></div>
+      <div><label for="tcPitch">음높이 <span class="rangeval" id="tcPitchVal"></span> <span class="hint">반음, −12~+12</span></label><input id="tcPitch" type="range" min="-12" max="12" step="1" value="0"></div>
+    </div>
+  </div>
+
+  <div class="set" id="setGoogle" hidden>
+    <label for="ggNotes">연출 지시 <span class="hint">구글은 숫자 속도 조절이 없고 이 지시문과 [태그]로만 조절합니다. 영어가 가장 잘 먹히고, 대본은 한국어 그대로 둡니다.</span></label>
+    <textarea id="ggNotes" class="small"></textarea>
+    <label class="inline"><input type="checkbox" id="ggFastTag" checked> 대본 맨 앞에 <code>[very fast]</code> 태그 자동 추가</label>
+  </div>
+
+  <p class="hint" id="costHint"></p>
+
+  <div class="actions">
+    <button type="button" class="primary" id="generate">음성 만들기</button>
+    <button type="button" id="cancel" hidden>중단</button>
+    <span class="status" id="status" role="status" aria-live="polite"></span><span class="status" id="statusTimer" aria-hidden="true"></span>
+  </div>
+  <div id="message" aria-live="polite"></div>
+
+  <div class="result" id="result" hidden>
+    <h2>결과</h2>
+    <audio id="audio" controls preload="metadata"></audio>
+    <div class="actions">
+      <a id="download" class="btn small" download="narration.mp3">내려받기</a>
+    </div>
+    <div class="meta" id="resultMeta"></div>
+  </div>
+
+  <details>
+    <summary>이번 브라우저에서 만든 목록</summary>
+    <ul class="history" id="history"></ul>
+    <button type="button" class="small" id="clearHistory">목록 지우기</button>
+  </details>
+
+  <h2>요금과 준비</h2>
+  <p class="hint">숫자는 2026-09-19 기준 각 회사 공식 요금 페이지 값입니다. 1분 환산은 "분당 약 360자(공백 제외)" 가정으로 계산한 것이라 실제와 다를 수 있어요.</p>
+  <table class="stack">
+    <thead><tr><th>모델</th><th>회사</th><th>요금</th><th>비고</th></tr></thead>
+    <tbody id="priceTable"></tbody>
+  </table>
+  <details>
+    <summary>키 발급과 결제 준비</summary>
+    <ol>
+      <li><strong>ElevenLabs</strong> — <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">설정 → API Keys</a>에서 발급. 무료 플랜(월 1만 크레딧)은 상업 이용 불가·출처 표기 필수라 수익화 쇼츠에는 Starter(월 $6)부터 쓰세요. 목소리 설계(Voice Design)는 무료 플랜에도 있고, 내 목소리 즉석 복제는 Starter부터입니다.</li>
+      <li><strong>Typecast</strong> — <a href="https://studio.typecast.ai/developers/api" target="_blank" rel="noopener">API 콘솔</a>에서 발급. 웹 에디터 구독과 API 플랜은 별개입니다. 무료 API 플랜(월 1.5만 크레딧)도 상업 이용 불가·출처 표기 필수, Lite(월 $15)부터 상업 이용 가능.</li>
+      <li><strong>구글 Gemini API</strong> — <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">AI Studio에서 키 발급</a>. 영상 생성기와 같은 키를 씁니다. TTS는 무료 등급에서도 되지만, 무료 등급 입력은 구글 제품 개선에 쓰일 수 있어요. 결과는 WAV로 나옵니다.</li>
+    </ol>
+  </details>
+  <details>
+    <summary>키 보호와 지출 상한</summary>
+    <ul>
+      <li>이 페이지는 키를 브라우저 저장소(localStorage)에만 둡니다. 같은 브라우저에서 같은 주소의 다른 스크립트가 읽을 수 있으므로, 이 사이트에 다른 사람이 코드를 올릴 수 없게 저장소 권한을 관리하세요.</li>
+      <li><strong>ElevenLabs</strong>: 키를 만들 때 권한을 "Text to Speech·Voices"로 좁히고, 크레딧 한도(custom credit quota)를 걸어 두면 새더라도 피해가 그 안에서 끝납니다.</li>
+      <li><strong>Typecast</strong>: 계정당 키 1개가 기본이고 도메인 제한 기능은 없습니다. 키가 샌 것 같으면 콘솔에서 새로 발급하세요.</li>
+      <li><strong>구글</strong>: 2026년 5월 28일 이후 발급되는 키는 IP 주소 제한만 걸 수 있습니다. Google Cloud 결제 콘솔에서 예산 알림을 걸어 두세요.</li>
+      <li>세 회사 모두 공식 안내는 "키를 브라우저에 두지 말라"입니다. 이 페이지는 본인만 쓰는 용도로 두세요. 브라우저에서 직접 호출이 되는 것은 2026-09-19에 실측한 결과이고, 회사가 막으면 언제든 안 될 수 있습니다.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>원하는 말투에 맞추는 요령</summary>
+    <ul>
+      <li><strong>속도</strong>: 분당 340음절쯤 되는 속도는 ElevenLabs에서는 파라미터(Flash·Multilingual 최대 1.2배)만으로 안 나옵니다. 원래 빠른 목소리를 고르거나 설명문에 "extremely fast"를 넣어 설계하세요. v3는 속도 슬라이더가 없고 태그로만 유도됩니다. Typecast는 속도 2.0배까지 숫자로 됩니다. 구글은 <code>[very fast]</code> 태그와 연출 지시로만 됩니다.</li>
+      <li><strong>감탄사·웃음</strong>: ElevenLabs v3와 구글은 대본 안에 <code>[laughs]</code> <code>[sighs]</code> <code>[gasp]</code> 같은 영어 태그를 넣습니다. Typecast는 태그가 없고 감정 프리셋·강도로 조절합니다.</li>
+      <li><strong>질문형 어미</strong>: 어느 서비스도 억양을 직접 조절하는 수단이 없습니다. 물음표를 꼭 붙이고, 구글은 연출 지시에 "questions rise sharply at the end"를 둡니다.</li>
+      <li><strong>비속어</strong>: 세 회사 모두 비속어 자체를 금지하는 조항은 없지만, 구글은 안전 필터에 걸려 거절될 수 있고 Typecast는 음란·성인 표현 생성을 금지합니다. 거절되면 그 부분만 순화해 다시 시도하세요.</li>
+      <li><strong>역할극</strong>: 대본 위 "역할극" 탭을 누르고 줄마다 <code>이름: 대사</code> 로 적으면 배역마다 목소리를 고를 수 있습니다. 같은 사람이 이어 말하면 한 차례로 묶입니다. ElevenLabs v3는 대화 전용 API로 한 번에(2,000자씩·목소리 10개), Typecast는 말 차례마다 목소리를 바꿔 한 파일로(25차례·2,000자씩), 구글은 정확히 2명일 때 한 요청으로 만듭니다. 그 밖의 경우는 말 차례마다 따로 만들어 이어 붙입니다.</li>
+      <li><strong>ElevenLabs Flash v2.5</strong>는 숫자·날짜를 기대대로 읽지 않을 수 있습니다. 숫자는 한글로 풀어 쓰세요. 긴 대본은 이 페이지가 모델 한도(v3 5,000자 · Flash 40,000자 · Multilingual 10,000자 · Typecast 2,000자)씩 문장 단위로 나눠 보내고 이어 붙입니다.</li>
+    </ul>
+  </details>
+
+  <div class="links">
+    <a href="./index.html">홈</a>
+    <a href="./video.html">영상 생성기</a>
+    <a href="./privacy.html">개인정보처리방침</a>
+    <a href="./terms.html">이용약관</a>
+  </div>
+</main>
+<footer>
+  <p>개인용 도구입니다. 입력한 대본과 생성된 음성은 이 페이지의 운영자에게 전송되지 않으며, 선택한 회사의 API로만 보내집니다.</p>
+</footer>
+
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+// 테스트용: 로컬에서 열었을 때만 ?mock= 으로 API 주소를 바꿀 수 있다 (공개 주소에서는 무시 — 링크로 키를 빼돌리지 못하게)
+const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) || location.protocol === 'file:';
+const MOCK = LOCAL ? qs.get('mock') : null;
+const BASES = {
+  elevenlabs: MOCK ? MOCK + '/el' : 'https://api.elevenlabs.io',
+  typecast: MOCK ? MOCK + '/tc' : 'https://api.typecast.ai',
+  google: MOCK ? MOCK + '/google' : 'https://generativelanguage.googleapis.com',
+};
+
+/* ---------- 제공사 ---------- */
+const PROVIDERS = {
+  elevenlabs: {
+    label: 'ElevenLabs',
+    keyLabel: 'ElevenLabs API 키',
+    keyHelp: 'elevenlabs.io → 설정 → API Keys 에서 발급. 무료 플랜도 됩니다(상업 이용 불가).',
+    placeholder: 'sk_… 로 시작하는 키',
+    headers: (k) => ({ 'xi-api-key': k }),
+  },
+  typecast: {
+    label: 'Typecast',
+    keyLabel: 'Typecast API 키',
+    keyHelp: 'studio.typecast.ai → Developers → API 에서 발급. 웹 에디터 구독과는 별개입니다.',
+    placeholder: 'Typecast API 키',
+    headers: (k) => ({ 'X-API-KEY': k }),
+  },
+  google: {
+    label: '구글 Gemini API',
+    keyLabel: 'Gemini API 키',
+    keyHelp: 'Google AI Studio에서 발급. 영상 생성기에 저장해 둔 키가 있으면 자동으로 채워지고, 여기서 지우면 두 페이지 모두에서 지워집니다.',
+    placeholder: 'AIza… 로 시작하는 키',
+    headers: (k) => ({ 'x-goog-api-key': k }),
+  },
+};
+
+/* ---------- 모델 ----------
+   maxChars: 한 번에 보낼 수 있는 글자 수(넘으면 문장 단위로 나눠 보냄).
+   price: 요금표 표시용. usdPer1k = 글자 1,000자당 USD, creditPerChar = 글자당 크레딧. */
+const MODELS = [
+  { id: 'eleven_v3', provider: 'elevenlabs', kind: 'el', label: 'Eleven v3 (표현력 최고, 태그)', maxChars: 5000, tags: true,
+    price: { usdPer1k: 0.10, creditPerChar: 1 }, priceText: '$0.10 / 1,000자 (1자 = 1크레딧)',
+    note: '웃음·한숨·감탄을 [태그]로 넣을 수 있는 모델. 속도 슬라이더가 없어 목소리 선택과 [태그]로 빠르기를 잡습니다. 한 번에 5,000자.' },
+  { id: 'eleven_flash_v2_5', provider: 'elevenlabs', kind: 'el', label: 'Flash v2.5 (저렴·속도 조절)', maxChars: 40000, tags: false,
+    price: { usdPer1k: 0.05, creditPerChar: 0.5 }, priceText: '$0.05 / 1,000자 (1자 = 0.5크레딧)',
+    note: '반값. 속도 0.7~1.2배 조절 가능. 태그는 안 되고, 숫자·날짜·전화번호를 기대대로 읽지 않을 수 있으니 한글로 풀어 쓰세요.' },
+  { id: 'eleven_multilingual_v2', provider: 'elevenlabs', kind: 'el', label: 'Multilingual v2 (안정)', maxChars: 10000, tags: false,
+    price: { usdPer1k: 0.10, creditPerChar: 1 }, priceText: '$0.10 / 1,000자 (1자 = 1크레딧)',
+    note: '긴 나레이션에 가장 안정적. 태그 없음, 속도 조절 가능.' },
+  { id: 'ssfm-v30', provider: 'typecast', kind: 'tc', label: 'Typecast ssfm-v30', maxChars: 2000, tags: false,
+    price: { usdPer1k: 0.075, creditPerChar: 1 }, priceText: '1자 = 1크레딧 (Lite $15/20만자 → 약 $0.075 / 1,000자)',
+    note: '속도 0.5~2.0배·음높이 ±12반음을 숫자로 확실히 조절. 감정은 프리셋 7종. 한 번에 2,000자.' },
+  { id: 'gemini-3.1-flash-tts-preview', provider: 'google', kind: 'gg', label: 'Gemini 3.1 Flash TTS (Preview)', maxChars: 3000, tags: true,
+    price: { usdPerAudioSec: 20 * 25 / 1e6 }, priceText: '오디오 $20 / 100만 토큰, 초당 25토큰 → 약 $0.03 / 1분',
+    note: '연출 지시와 [태그]로 말투를 잡는 방식. 무료 등급에서도 됨. Preview라 가끔 500 오류가 나면 한 번 더 시도합니다.' },
+  { id: 'gemini-2.5-flash-preview-tts', provider: 'google', kind: 'gg', label: 'Gemini 2.5 Flash TTS (Preview)', maxChars: 3000, tags: false,
+    price: { usdPerAudioSec: 10 * 25 / 1e6 }, priceText: '오디오 $10 / 100만 토큰 → 약 $0.015 / 1분',
+    note: '더 싸지만 [태그]는 안 됩니다. 연출 지시문으로만 조절.' },
+];
+const modelById = (id) => MODELS.find((m) => m.id === id);
+
+/* 구글 프리셋 목소리 30개 (공식 문서의 한 단어 성격 표기를 옮김. 성별은 문서에 없음) */
+const GG_VOICES = [
+  ['Fenrir', '흥분 잘함'], ['Zubenelgenubi', '캐주얼'], ['Puck', '경쾌'], ['Charon', '설명조'], ['Algenib', '걸걸함'], ['Gacrux', '성숙'],
+  ['Orus', '단단함'], ['Alnilam', '단단함'], ['Iapetus', '또렷'], ['Enceladus', '숨소리'], ['Umbriel', '느긋'], ['Algieba', '부드러움'],
+  ['Rasalgethi', '설명조'], ['Schedar', '고름'], ['Achird', '친근'], ['Sadaltager', '박식'], ['Zephyr', '밝음'], ['Kore', '단단함'],
+  ['Leda', '젊음'], ['Aoede', '산뜻'], ['Callirrhoe', '느긋'], ['Autonoe', '밝음'], ['Despina', '부드러움'], ['Erinome', '또렷'],
+  ['Laomedeia', '경쾌'], ['Achernar', '포근'], ['Pulcherrima', '앞으로 나옴'], ['Vindemiatrix', '온화'], ['Sadachbia', '활기'], ['Sulafat', '따뜻'],
+];
+
+/* 태그 도우미 */
+const TAGS = {
+  el: ['[excited]', '[laughs]', '[sighs]', '[gasp]', '[whispers]', '[sarcastic]', '[curious]', '…'],
+  gg: ['[very fast]', '[excited]', '[laughs]', '[sighs]', '[gasp]', '[whispers]', '[shouting]', '[sarcastic]', '[curious]'],
+  tc: [],
+};
+const TAG_HINTS = {
+  el3: 'v3 전용: 문장 앞에 [태그]를 넣으면 그 부분 말투가 바뀝니다. 말줄임표(…)는 쉼, 영어 단어를 대문자로 쓰면 강조.',
+  el2: '이 모델은 [태그]가 안 됩니다. 문장 부호와 문맥으로만 조절돼요. 쉼은 <break time="0.5s" /> 로 넣을 수 있어요.',
+  gg: '문장 앞에 영어 [태그]를 넣으면 그 부분 말투가 바뀝니다. 한국어 대본에도 태그는 영어로.',
+  gg2: '2.5 모델은 [태그]가 안 됩니다. 연출 지시문으로만 조절돼요.',
+  tc: '태그는 안 됩니다. 쉼은 쉼표·마침표·줄바꿈으로, 감정과 속도는 아래에서 조절합니다.',
+};
+
+/* 프리셋 */
+const GG_NOTES_SHORTS = `# AUDIO PROFILE: Shorts narrator
+Korean male YouTube Shorts narrator in his late 20s. Low-pitched, slightly husky voice.
+## DIRECTOR'S NOTES
+Language: Korean, casual banmal like talking to a close friend. Read the transcript exactly as written, including slang.
+Pace: extremely fast and energetic, racing to the punchline; almost no pauses between sentences.
+Intonation: questions rise sharply at the end; punch the key words; small spontaneous reactions are welcome.
+Do not read these notes aloud. Speak only the transcript below.
+### TRANSCRIPT`;
+const GG_NOTES_CALM = `# AUDIO PROFILE: Documentary narrator
+Korean male narrator in his 30s. Warm, clear voice.
+## DIRECTOR'S NOTES
+Language: Korean. Read the transcript exactly as written.
+Pace: calm and steady, natural pauses between sentences.
+Do not read these notes aloud. Speak only the transcript below.
+### TRANSCRIPT`;
+const PRESETS = {
+  shorts: {
+    note: '남성·낮은 톤·아주 빠름·반말 쇼츠 말투. 목소리 자체가 빨라야 하니 ElevenLabs는 "빠른" 목소리를 고르거나 설계하세요.',
+    el: { stability: 0.35, v3: '0.5', similarity: 0.8, style: 0.5, speed: 1.2, boost: true },
+    tc: { emotion: 'toneup', intensity: 1.0, tempo: 1.5, pitch: 0 },
+    gg: { notes: GG_NOTES_SHORTS, fastTag: true },
+  },
+  calm: {
+    note: '차분하고 또박또박한 설명 나레이션.',
+    el: { stability: 0.6, v3: '1', similarity: 0.75, style: 0.1, speed: 1.0, boost: true },
+    tc: { emotion: 'smart', intensity: 1.0, tempo: 1.0, pitch: 0 },
+    gg: { notes: GG_NOTES_CALM, fastTag: false },
+  },
+};
+
+/* ---------- 저장소 ---------- */
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+const memKeys = {};
+function keyName(p) { return 'tts.key.' + p; }
+function loadKey(p) { return memKeys[p] || store.get(keyName(p)) || (p === 'google' ? store.get('vg.key.google') : '') || ''; }
+function saveKey(p, v, remember) { memKeys[p] = v; if (remember && v) store.set(keyName(p), v); else store.del(keyName(p)); }
+function keyPersisted(p) { return !!(store.get(keyName(p)) || (p === 'google' && store.get('vg.key.google'))); }
+function clearStoredKey(p) { store.del(keyName(p)); if (p === 'google') store.del('vg.key.google'); }
+function loadJson(k, fallback) { try { const v = JSON.parse(store.get(k) || 'null'); return v == null ? fallback : v; } catch (e) { return fallback; } }
+
+/* ---------- 상태 ---------- */
+let job = null;        // { abort: AbortController }
+let lastBlobUrl = null;
+let elVoices = loadJson('tts.voices.elevenlabs', []);
+let tcVoices = loadJson('tts.voices.typecast', []);
+let applyingPreset = false;
+let scriptMode = store.get('tts.mode') === 'role' ? 'role' : 'solo';
+
+/* ---------- UI 채우기 ---------- */
+function fillModels() {
+  const sel = $('model');
+  sel.innerHTML = '';
+  for (const p of Object.keys(PROVIDERS)) {
+    const og = document.createElement('optgroup');
+    og.label = PROVIDERS[p].label;
+    for (const m of MODELS.filter((x) => x.provider === p)) {
+      const o = document.createElement('option');
+      o.value = m.id; o.textContent = m.label;
+      og.appendChild(o);
+    }
+    sel.appendChild(og);
+  }
+  sel.value = store.get('tts.model') || MODELS[0].id;
+  if (!modelById(sel.value)) sel.value = MODELS[0].id;
+}
+function currentModel() { return modelById($('model').value) || MODELS[0]; }
+function fillGgVoices() {
+  const sel = $('ggVoice'); sel.innerHTML = '';
+  for (const [name, ko] of GG_VOICES) { const o = document.createElement('option'); o.value = name; o.textContent = `${name} — ${ko}`; sel.appendChild(o); }
+  sel.value = store.get('tts.voice.google') || 'Fenrir';
+  if (!sel.value) sel.value = 'Fenrir';
+}
+function fillElVoices() {
+  const sel = $('elVoice');
+  const prev = store.get('tts.voice.elevenlabs') || sel.value;
+  sel.innerHTML = '';
+  const o0 = document.createElement('option'); o0.value = ''; o0.textContent = elVoices.length ? '— 고르세요 —' : '— 불러오기를 누르세요 —'; sel.appendChild(o0);
+  for (const v of elVoices) {
+    const o = document.createElement('option'); o.value = v.voice_id;
+    const lab = v.labels || {};
+    const extra = [v.category === 'cloned' ? '복제' : v.category === 'generated' ? '설계' : v.category === 'premade' ? '기본' : v.category, lab.gender, lab.age, lab.accent, lab.language].filter(Boolean).join(' · ');
+    o.textContent = v.name + (extra ? ` (${extra})` : '');
+    sel.appendChild(o);
+  }
+  if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+  updateElPreview();
+}
+function updateElPreview() {
+  const v = elVoices.find((x) => x.voice_id === $('elVoice').value);
+  const wrap = $('elPreviewWrap');
+  if (v && v.preview_url) { $('elPreview').src = v.preview_url; wrap.hidden = false; } else { wrap.hidden = true; $('elPreview').removeAttribute('src'); }
+}
+function tcVoiceName(v) { const n = v.voice_name; return typeof n === 'string' ? n : (n && (n.kor || n.eng)) || v.voice_id; }
+const TC_AGE = { child: '아동', teenager: '10대', young_adult: '청년', middle_age: '중년', elder: '노년' };
+const TC_USE_KEYWORDS = { shorts: ['tiktok', 'reels', 'shorts'], conversational: ['conversational'], narration: ['audiobook', 'documentary', 'news', 'announcer', 'e-learning', 'narration'] };
+function fillTcVoices() {
+  const sel = $('tcVoice');
+  const prev = store.get('tts.voice.typecast') || sel.value;
+  const g = $('tcGender').value, a = $('tcAge').value;
+  const kw = TC_USE_KEYWORDS[$('tcUse').value] || null;
+  const list = tcVoices.filter((v) => (!g || v.gender === g) && (!a || v.age === a) && (!kw || (v.use_cases || []).some((x) => kw.some((k) => String(x).toLowerCase().includes(k)))));
+  sel.innerHTML = '';
+  const o0 = document.createElement('option'); o0.value = ''; o0.textContent = tcVoices.length ? (list.length ? '— 고르세요 —' : '— 조건에 맞는 목소리 없음 —') : '— 불러오기를 누르세요 —'; sel.appendChild(o0);
+  for (const v of list) {
+    const o = document.createElement('option'); o.value = v.voice_id;
+    o.textContent = `${tcVoiceName(v)} (${[v.gender === 'male' ? '남' : v.gender === 'female' ? '여' : '', TC_AGE[v.age] || v.age, (v.use_cases || []).slice(0, 2).join('/')].filter(Boolean).join(' · ')})`;
+    sel.appendChild(o);
+  }
+  if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+  updateTcPreview(); refreshTcEmotionHint();
+}
+function updateTcPreview() {
+  const v = tcVoices.find((x) => x.voice_id === $('tcVoice').value);
+  const wrap = $('tcPreviewWrap');
+  if (v && v.preview_url) { $('tcPreview').src = v.preview_url; wrap.hidden = false; } else { wrap.hidden = true; $('tcPreview').removeAttribute('src'); }
+}
+function tcSelectedEmotions() {
+  const id = $('tcManual').value.trim() || $('tcVoice').value;
+  const v = tcVoices.find((x) => x.voice_id === id);
+  if (!v || !Array.isArray(v.models)) return null;
+  const m = v.models.find((x) => x.version === 'ssfm-v30') || v.models[0];
+  return m && Array.isArray(m.emotions) ? m.emotions : null;
+}
+function refreshTcEmotionHint() {
+  const em = tcSelectedEmotions();
+  const sel = $('tcEmotion');
+  for (const o of sel.options) o.disabled = !!(em && o.value !== 'smart' && !em.includes(o.value));
+  if (em && sel.value !== 'smart' && !em.includes(sel.value)) {
+    $('tcEmotionHint').textContent = `이 목소리는 "${sel.selectedOptions[0].textContent}"을(를) 지원하지 않아 문맥 자동으로 보냅니다. 지원: ${em.join(', ')}`;
+  } else if (em) {
+    $('tcEmotionHint').textContent = `이 목소리 지원 감정: ${em.join(', ')}`;
+  } else { $('tcEmotionHint').textContent = ''; }
+}
+function fillTagChips() {
+  const m = currentModel();
+  const box = $('tagChips'); box.innerHTML = '';
+  let list = [], hint = '';
+  if (m.kind === 'el') { list = m.tags ? TAGS.el : []; hint = m.tags ? TAG_HINTS.el3 : TAG_HINTS.el2; }
+  else if (m.kind === 'gg') { list = m.tags ? TAGS.gg : []; hint = m.tags ? TAG_HINTS.gg : TAG_HINTS.gg2; }
+  else { list = TAGS.tc; hint = TAG_HINTS.tc; }
+  for (const t of list) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = t;
+    b.addEventListener('click', () => insertAtCursor($('script'), t === '…' ? '…' : t + ' '));
+    box.appendChild(b);
+  }
+  $('tagHint').textContent = hint;
+}
+function insertAtCursor(ta, text) {
+  const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? ta.value.length;
+  ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+  ta.selectionStart = ta.selectionEnd = s + text.length;
+  ta.focus(); refreshCounter();
+  if (scriptMode === 'role') renderCast();
+}
+function fillPriceTable() {
+  const tb = $('priceTable'); tb.innerHTML = '';
+  for (const m of MODELS) {
+    const tr = document.createElement('tr');
+    const cells = [m.label, PROVIDERS[m.provider].label, m.priceText, m.note || ''], labels = ['모델', '회사', '요금', '비고'];
+    cells.forEach((c, i) => { const td = document.createElement('td'); td.textContent = c; td.dataset.label = labels[i]; tr.appendChild(td); });
+    tb.appendChild(tr);
+  }
+}
+function refreshOptions() {
+  const m = currentModel();
+  const p = PROVIDERS[m.provider];
+  $('keyLabel').textContent = p.keyLabel;
+  $('keyHelp').textContent = p.keyHelp;
+  $('apiKey').placeholder = p.placeholder;
+  $('apiKey').value = loadKey(m.provider);
+  $('rememberKey').checked = keyPersisted(m.provider);
+  $('modelNote').textContent = m.note || '';
+  for (const k of Object.keys(PROVIDERS)) {
+    $('prov' + cap(k)).hidden = k !== m.provider;
+    $('set' + cap(k)).hidden = k !== m.provider;
+  }
+  const v3 = m.id === 'eleven_v3';
+  $('elStabWrap').hidden = v3; $('elV3StabWrap').hidden = !v3;
+  $('elSimWrap').hidden = v3; $('elStyleWrap').hidden = v3; $('elSpeedWrap').hidden = v3;
+  $('elBoost').parentElement.hidden = v3;
+  $('ggFastTag').parentElement.hidden = !(m.kind === 'gg' && m.tags);
+  fillTagChips();
+  refreshCounter();
+  refreshCost();
+  renderCast();
+}
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+function applyPreset(name) {
+  const pr = PRESETS[name];
+  $('presetNote').textContent = pr ? pr.note : '아래 값을 직접 조절합니다.';
+  if (!pr) return;
+  applyingPreset = true;
+  $('elStability').value = pr.el.stability; $('elV3Stability').value = pr.el.v3; $('elSimilarity').value = pr.el.similarity;
+  $('elStyle').value = pr.el.style; $('elSpeed').value = pr.el.speed; $('elBoost').checked = pr.el.boost;
+  $('tcEmotion').value = pr.tc.emotion; $('tcIntensity').value = pr.tc.intensity; $('tcTempo').value = pr.tc.tempo; $('tcPitch').value = pr.tc.pitch;
+  $('ggNotes').value = pr.gg.notes; $('ggFastTag').checked = pr.gg.fastTag;
+  applyingPreset = false;
+  refreshRangeLabels(); refreshTcEmotionHint(); refreshCost();
+}
+function refreshRangeLabels() {
+  for (const id of ['elStability', 'elSimilarity', 'elStyle', 'elSpeed', 'tcIntensity', 'tcTempo', 'tcPitch', 'vdGuidance']) {
+    const v = $(id).value;
+    $(id + 'Val').textContent = id === 'elSpeed' || id === 'tcTempo' ? v + '배' : id === 'tcPitch' ? (v > 0 ? '+' + v : v) : v;
+  }
+}
+function markCustom() { if (!applyingPreset && $('preset').value !== 'custom') { $('preset').value = 'custom'; $('presetNote').textContent = '아래 값을 직접 조절합니다.'; } }
+
+/* ---------- 대본 ---------- */
+function scriptText() { return $('script').value.replace(/\r\n/g, '\n').trim(); }
+function countChars(t) { return t.length; }
+function countSpoken(t) { return t.replace(/\[[^\]]*\]|<\|[^|]*\|>|<[^>]+>/g, '').replace(/\s/g, '').length; }
+function refreshCounter() {
+  const m = currentModel(); const t = scriptText();
+  const n = countChars(t);
+  const c = $('counter');
+  if (scriptMode === 'role') {
+    const k = t ? roleRequestCount(m, parseDialogue(t)) : 1;
+    c.textContent = `${n.toLocaleString('ko-KR')}자` + (k > 1 ? ` · 역할극 ${k}번에 나눠 보냄` : '');
+    c.classList.toggle('over', k > 1);
+  } else {
+    const chunks = n > m.maxChars ? splitText(t, m.maxChars).length : 1;
+    c.textContent = `${n.toLocaleString('ko-KR')}자` + (chunks > 1 ? ` · ${m.maxChars.toLocaleString('ko-KR')}자씩 ${chunks}번에 나눠 보냄` : '');
+    c.classList.toggle('over', chunks > 1);
+  }
+  refreshCost();
+}
+/* 문장 경계(마침표·물음표·느낌표·말줄임표 뒤의 공백, 또는 줄바꿈)에서 잘라 max 이하 덩어리로.
+   원문을 고쳐 쓰지 않고 그대로 자른다(태그·소수점·말줄임표 보존). 경계가 없으면 공백에서, 그래도 없으면 강제로 자른다. */
+function splitText(text, max) {
+  if (text.length <= max) return [text];
+  const bounds = []; // 자를 수 있는 위치(그 위치 앞까지가 한 덩어리)
+  const re = /[.?!…。]+(?=\s)|\n/g; let mm;
+  while ((mm = re.exec(text))) bounds.push(mm.index + mm[0].length);
+  const out = [];
+  let start = 0;
+  while (start < text.length) {
+    const limit = start + max;
+    if (text.length - start <= max) { out.push(text.slice(start)); break; }
+    let cut = -1;
+    for (const b of bounds) { if (b > start && b <= limit) cut = b; else if (b > limit) break; }
+    if (cut < 0) { const sp = text.lastIndexOf(' ', limit); cut = sp > start + max * 0.5 ? sp + 1 : limit; }
+    out.push(text.slice(start, cut));
+    start = cut;
+    while (start < text.length && /\s/.test(text[start])) start++;
+  }
+  return out.map((x) => x.trim()).filter(Boolean);
+}
+
+/* ---------- 역할극: 대본 파싱 · 배역 ---------- */
+const ROLE_EXAMPLE = `나레이터: 오늘은 수성 얘기입니다.
+민수: 야, 수성이 태양이랑 제일 가깝다며? 그럼 엄청 뜨겁겠네?
+지혜: 낮에는 사백삼십 도까지 올라가. 근데 밤엔 영하 백팔십 도야.
+민수: 뭐? 그게 말이 돼?
+지혜: 대기가 거의 없어서 열이 하나도 안 잡혀. 그래서 낮밤 차이가 미쳤어.
+나레이터: 다음엔 금성으로 갑니다.`;
+/* "이름: 대사" 줄을 화자별로 나눈다. 이름 없는 줄은 앞 화자가 이어 말하고, 맨 처음이면 "나레이터". */
+function parseDialogue(text) {
+  const lines = []; const speakers = [];
+  for (const raw of text.replace(/\r\n/g, '\n').split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    // 줄 앞의 [태그]는 이름이 아니라 대사에 붙는다: "[laughs] 민수: 하하" → 민수 / "[laughs] 하하"
+    const tg = /^((?:\[[^\]]*\]\s*)+)/.exec(line);
+    const rest = tg ? line.slice(tg[0].length) : line;
+    const m = /^([^:：]{1,20}?)\s*[:：]\s*(.*)$/.exec(rest);
+    const nm = m ? m[1].trim() : '';
+    const looksLikeTime = m && /(^|\s)\d{1,2}$/.test(nm) && /^\d{2}(?!\d)/.test(m[2]); // "오후 3:30에" 는 이름이 아님
+    if (m && nm && !/^\d+$/.test(nm) && !looksLikeTime && !/^https?$/i.test(nm)) {
+      lines.push({ speaker: nm, text: ((tg ? tg[1] : '') + m[2]).trim() });
+    } else if (lines.length) {
+      lines[lines.length - 1].text = (lines[lines.length - 1].text + ' ' + line).trim();
+    } else {
+      lines.push({ speaker: '나레이터', text: line });
+    }
+  }
+  const kept = lines.filter((l) => l.text);
+  for (const l of kept) if (!speakers.includes(l.speaker)) speakers.push(l.speaker);
+  return { lines: kept, speakers };
+}
+/* 같은 화자가 연달아 말하면 한 덩어리로 */
+function groupLines(lines) {
+  const out = [];
+  for (const l of lines) {
+    if (out.length && out[out.length - 1].speaker === l.speaker) out[out.length - 1].text += ' ' + l.text;
+    else out.push({ speaker: l.speaker, text: l.text });
+  }
+  return out;
+}
+function castKey() { return 'tts.cast.' + currentModel().provider; }
+function castVoiceOptions() {
+  const m = currentModel();
+  if (m.kind === 'gg') return GG_VOICES.map(([n, ko]) => ({ id: n, label: `${n} — ${ko}` }));
+  if (m.kind === 'tc') return tcVoices.map((v) => ({ id: v.voice_id, label: `${tcVoiceName(v)} (${[v.gender === 'male' ? '남' : v.gender === 'female' ? '여' : '', TC_AGE[v.age] || v.age, (v.use_cases || []).slice(0, 2).join('/')].filter(Boolean).join(' · ')})` }));
+  return elVoices.map((v) => ({ id: v.voice_id, label: v.name + (v.labels && v.labels.gender ? ` (${v.labels.gender})` : '') }));
+}
+const GG_ROLE_DEFAULTS = ['Fenrir', 'Kore', 'Puck', 'Zubenelgenubi', 'Leda', 'Charon', 'Aoede', 'Algenib'];
+function renderCast() {
+  const wrap = $('castWrap'); const list = $('castList');
+  wrap.hidden = scriptMode !== 'role';
+  if (scriptMode !== 'role') return;
+  const m = currentModel();
+  const { speakers } = parseDialogue(scriptText());
+  const saved = loadJson(castKey(), {});
+  const opts = castVoiceOptions();
+  const prev = list.dataset.provider === m.provider ? castVoices() : {}; // 다른 회사의 목소리 id 가 넘어오지 않게
+  list.dataset.provider = m.provider;
+  const used = new Set(speakers.map((sp) => (prev[sp] && prev[sp].sel) || saved[sp]).filter(Boolean));
+  list.innerHTML = '';
+  speakers.forEach((sp, i) => {
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = sp; list.appendChild(nm);
+    const cell = document.createElement('div'); cell.className = 'vsel';
+    const sel = document.createElement('select'); sel.setAttribute('aria-label', sp + ' 목소리'); sel.dataset.speaker = sp;
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = opts.length ? '— 고르세요 —' : '— 위에서 목소리를 먼저 불러오세요 —'; sel.appendChild(o0);
+    for (const o of opts) { const op = document.createElement('option'); op.value = o.id; op.textContent = o.label; sel.appendChild(op); }
+    // 화면에 이미 있던 값이 우선, 없으면 저장된 값(목록에 있으면 선택, 없으면 직접 입력 칸에)
+    const savedInList = saved[sp] && opts.some((o) => o.id === saved[sp]);
+    const pv = prev[sp] && (prev[sp].sel || prev[sp].manual) ? prev[sp] : null;
+    let want = pv ? pv.sel : (savedInList ? saved[sp] : '');
+    let manualWant = pv ? pv.manual : (saved[sp] && !savedInList ? saved[sp] : '');
+    if (!want && !manualWant && m.kind === 'gg') { want = GG_ROLE_DEFAULTS.find((v) => !used.has(v)) || GG_ROLE_DEFAULTS[i % GG_ROLE_DEFAULTS.length]; used.add(want); }
+    if ([...sel.options].some((o) => o.value === want)) sel.value = want;
+    sel.disabled = !opts.length;
+    cell.appendChild(sel);
+    if (m.kind !== 'gg') {
+      const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = '또는 voice_id'; inp.spellcheck = false; inp.dataset.speaker = sp; inp.setAttribute('aria-label', sp + ' voice_id 직접 입력');
+      inp.value = manualWant;
+      // 둘 중 하나만 쓴다: 목록에서 고르면 직접 입력을 비우고, 직접 입력하면 목록 선택을 비운다
+      sel.addEventListener('change', () => { if (sel.value) inp.value = ''; saveCast(); });
+      inp.addEventListener('input', () => { if (inp.value.trim()) sel.value = ''; });
+      inp.addEventListener('change', saveCast);
+      cell.appendChild(inp);
+    } else {
+      sel.addEventListener('change', saveCast);
+    }
+    list.appendChild(cell);
+  });
+  const limitNote = m.kind === 'gg' ? '구글은 정확히 2명일 때 한 요청으로 자연스럽게 주고받고, 1명이거나 3명 이상이면 말 차례마다 따로 만들어 이어 붙입니다.' : m.id === 'eleven_v3' ? 'v3는 대화 전용 API(Text to Dialogue)로 한 번에 만들어 주고받는 호흡이 자연스럽습니다. 목소리는 10개까지, 2,000자씩 나눠 보냄.' : m.kind === 'tc' ? 'Typecast는 말 차례마다 목소리를 바꿔 한 파일로 합쳐 주고, 화자가 바뀔 때 0.25초 쉽니다 (25차례·2,000자씩 나눠 보냄).' : '이 모델은 줄마다 따로 만들어 이어 붙입니다. 주고받는 호흡은 v3가 더 자연스러워요.';
+  $('castHint').textContent = speakers.length ? `${speakers.length}명: ${speakers.join(', ')}. ${limitNote}` : '대본에 "이름: 대사" 줄을 적으면 여기 배역이 나타납니다.';
+}
+function castVoices() {
+  const out = {};
+  for (const sel of $('castList').querySelectorAll('select')) out[sel.dataset.speaker] = { sel: sel.value, manual: '' };
+  for (const inp of $('castList').querySelectorAll('input')) if (out[inp.dataset.speaker]) out[inp.dataset.speaker].manual = inp.value.trim();
+  return out;
+}
+function saveCast() {
+  const cur = castVoices(); const saved = loadJson(castKey(), {});
+  for (const [sp, v] of Object.entries(cur)) { const id = v.manual || v.sel; if (id) saved[sp] = id; }
+  store.set(castKey(), JSON.stringify(saved));
+}
+/* 역할극 실행에 필요한 것: 화자별 voice id 가 모두 정해졌는지 확인 */
+function roleCtx() {
+  const { lines, speakers } = parseDialogue(scriptText());
+  if (!lines.length) throw new ApiError('대본을 적어 주세요.', 0);
+  const cur = castVoices(); const voices = {};
+  for (const sp of speakers) {
+    const id = cur[sp] ? (cur[sp].manual || cur[sp].sel) : '';
+    if (!id) throw new ApiError(`"${sp}" 의 목소리를 골라 주세요.`, 0);
+    voices[sp] = id;
+  }
+  return { lines, speakers, voices, groups: groupLines(lines) };
+}
+function castVoiceLabel(id) {
+  const m = currentModel();
+  if (m.kind === 'gg') return id;
+  if (m.kind === 'tc') { const v = tcVoices.find((x) => x.voice_id === id); return v ? tcVoiceName(v) : id; }
+  return elVoiceLabel(id);
+}
+function roleVoiceText(rc) { return rc.speakers.map((sp) => `${sp}=${castVoiceLabel(rc.voices[sp])}`).join(', '); }
+function setScriptMode(next) {
+  scriptMode = next; store.set('tts.mode', next);
+  $('tabSolo').setAttribute('aria-selected', String(next === 'solo'));
+  $('tabRole').setAttribute('aria-selected', String(next === 'role'));
+  $('scriptHint').textContent = next === 'role'
+    ? '줄마다 "이름: 대사" 로 적으세요 (예: 민수: 야 이거 봤어?). 이름 없는 줄은 앞 사람이 이어 말하고, 맨 첫 줄에 이름이 없으면 "나레이터" 배역이 됩니다.'
+    : '말하는 그대로 적으세요. 숫자는 한글로 풀어 쓰면(예: 430도 → 사백삼십 도) 어느 모델이든 안전합니다.';
+  $('roleVoiceNote').hidden = next !== 'role';
+  for (const id of ['elManualRow', 'tcManualRow', 'ggVoiceRow']) $(id).hidden = next === 'role';
+  $('script').placeholder = next === 'role' ? '민수: 야, 수성이 태양이랑 제일 가깝다며?\n지혜: 응. 낮에는 사백삼십 도까지 올라가.' : '예) 여기 있는 게 수성이거든요? 근데 얘 태양이랑 진짜 가깝습니다.';
+  renderCast(); refreshCounter();
+}
+
+/* ---------- 비용 ---------- */
+function estimateCost(m, text) {
+  const n = countChars(text), spoken = countSpoken(text);
+  if (!n) return { text: '대본을 넣으면 계산돼요.', usd: null };
+  if (m.price.usdPer1k != null) {
+    const usd = n / 1000 * m.price.usdPer1k;
+    const credits = Math.ceil(n * m.price.creditPerChar);
+    return { text: `약 ${credits.toLocaleString('ko-KR')}크레딧 (${n.toLocaleString('ko-KR')}자, API 요금 기준 $${usd.toFixed(3)})`, usd };
+  }
+  let speed = 1;
+  if (m.kind === 'gg') speed = $('ggFastTag').checked && m.tags ? 1.3 : 1;
+  const sec = spoken / 6 / speed; // 분당 약 360자(공백 제외) 가정
+  const usd = sec * m.price.usdPerAudioSec;
+  return { text: `약 $${usd.toFixed(3)} (음성 약 ${Math.round(sec)}초 추정 · 무료 등급이면 $0)`, usd, sec };
+}
+function refreshCost() {
+  const m = currentModel();
+  const c = estimateCost(m, scriptText());
+  $('costHint').innerHTML = '예상 비용: <span class="cost"></span>';
+  $('costHint').querySelector('.cost').textContent = c.text;
+}
+
+/* ---------- 메시지 / 상태 ---------- */
+function showMessage(kind, text, extra) {
+  const box = $('message');
+  box.innerHTML = '';
+  if (!kind) return;
+  const div = document.createElement('div');
+  div.className = 'notice ' + kind;
+  div.textContent = text;
+  if (extra) { const pre = document.createElement('pre'); pre.textContent = extra; div.appendChild(pre); }
+  box.appendChild(div);
+}
+let timer = null, startedAt = 0;
+function setStatus(text, running) {
+  const s = $('status'), tm = $('statusTimer');
+  if (running) {
+    if (!timer) { startedAt = Date.now(); timer = setInterval(() => { const sec = Math.floor((Date.now() - startedAt) / 1000); tm.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; }, 1000); tm.textContent = '0:00'; }
+    if (s.textContent !== text) s.textContent = text;
+  } else {
+    if (timer) { clearInterval(timer); timer = null; }
+    s.textContent = text || ''; tm.textContent = '';
+  }
+}
+
+/* ---------- 공통 HTTP ---------- */
+class ApiError extends Error {
+  constructor(message, status, body) { super(message); this.status = status; this.body = body; }
+}
+async function http(url, { method = 'GET', headers = {}, body, signal, raw = false } = {}) {
+  const init = { method, headers: { ...headers }, signal };
+  if (body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
+  let r;
+  try { r = await fetch(url, init); }
+  catch (e) {
+    if (e && e.name === 'AbortError') throw e;
+    throw new ApiError('네트워크 오류이거나 브라우저에서 이 주소로 직접 호출하는 것이 막혔어요 (CORS). 인터넷 연결과 키를 확인해 주세요.', 0, String(e));
+  }
+  if (raw) {
+    if (!r.ok) { const text = await r.text().catch(() => ''); let data = text; try { data = JSON.parse(text); } catch (e) {} throw new ApiError(explainHttp(r.status, data), r.status, data); }
+    return r;
+  }
+  const text = await r.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+  if (!r.ok) throw new ApiError(explainHttp(r.status, data), r.status, data);
+  return data;
+}
+function explainHttp(status, data) {
+  const detail = extractMessage(data);
+  const map = {
+    400: '요청 내용이 거부됐어요 (400).',
+    401: '키가 틀렸거나 만료됐어요 (401).',
+    402: '크레딧이 부족해요 (402).',
+    403: '권한이 없거나 플랜에서 막힌 기능이에요 (403).',
+    404: '주소·모델·목소리를 찾지 못했어요 (404).',
+    422: '입력값 형식이 맞지 않아요 (422).',
+    429: '요청 한도에 걸렸어요 (429). 잠시 뒤 다시 시도하세요.',
+  };
+  const head = map[status] || (status >= 500 ? `상대 서버 오류 (${status}). 잠시 뒤 다시 시도하세요.` : `오류 (${status}).`);
+  return detail ? `${head} ${detail}` : head;
+}
+function extractMessage(data) {
+  if (!data) return '';
+  if (typeof data === 'string') return data.slice(0, 300);
+  if (data.error && data.error.message) return data.error.message;
+  if (typeof data.detail === 'string') return data.detail;
+  if (Array.isArray(data.detail)) return data.detail.map((d) => (d.msg || JSON.stringify(d))).join('; ').slice(0, 300);
+  if (data.detail && typeof data.detail === 'object') return [data.detail.status, data.detail.message].filter(Boolean).join(': ');
+  if (data.message) return data.message;
+  return JSON.stringify(data).slice(0, 300);
+}
+const sleep = (ms, signal) => new Promise((resolve, reject) => {
+  const t = setTimeout(resolve, ms);
+  if (signal) signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('aborted', 'AbortError')); }, { once: true });
+});
+function b64ToBytes(b64) {
+  const bin = atob(b64); const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+/* 16비트 PCM 여러 조각을 WAV 하나로 (구글 TTS 는 base64 PCM 으로 옴) */
+function pcmToWav(chunks, rate, channels = 1) {
+  const len = chunks.reduce((a, c) => a + c.length, 0);
+  const h = new DataView(new ArrayBuffer(44));
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) h.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); h.setUint32(4, 36 + len, true); w(8, 'WAVE'); w(12, 'fmt '); h.setUint32(16, 16, true);
+  h.setUint16(20, 1, true); h.setUint16(22, channels, true); h.setUint32(24, rate, true); h.setUint32(28, rate * channels * 2, true);
+  h.setUint16(32, channels * 2, true); h.setUint16(34, 16, true); w(36, 'data'); h.setUint32(40, len, true);
+  return new Blob([h, ...chunks], { type: 'audio/wav' });
+}
+
+/* ---------- ElevenLabs ---------- */
+function elVoiceId() { return $('elManual').value.trim() || $('elVoice').value; }
+function elSettings(m) {
+  if (m.id === 'eleven_v3') return { stability: Number($('elV3Stability').value) };
+  return { stability: Number($('elStability').value), similarity_boost: Number($('elSimilarity').value), style: Number($('elStyle').value), use_speaker_boost: $('elBoost').checked, speed: Number($('elSpeed').value) };
+}
+async function runEl(m, ctx, key, signal) {
+  const hdr = PROVIDERS.elevenlabs.headers(key);
+  const voice = elVoiceId();
+  if (!voice) throw new ApiError('목소리를 고르거나 voice_id 를 넣어 주세요.', 0);
+  const chunks = splitText(ctx.text, m.maxChars);
+  const blobs = [];
+  for (let i = 0; i < chunks.length; i++) {
+    setStatus(chunks.length > 1 ? `ElevenLabs 생성 중… (${i + 1}/${chunks.length})` : 'ElevenLabs가 음성을 만드는 중…', true);
+    const body = { text: chunks[i], model_id: m.id, voice_settings: elSettings(m), apply_text_normalization: 'auto' };
+    if (m.id !== 'eleven_multilingual_v2') body.language_code = 'ko';
+    if (i > 0) body.previous_text = chunks[i - 1];
+    if (i < chunks.length - 1) body.next_text = chunks[i + 1];
+    const r = await http(`${BASES.elevenlabs}/v1/text-to-speech/${encodeURIComponent(voice)}?output_format=mp3_44100_128`, { method: 'POST', headers: hdr, body, signal, raw: true });
+    blobs.push(await r.blob());
+  }
+  return { blob: new Blob(blobs, { type: 'audio/mpeg' }), ext: 'mp3', voice: elVoiceLabel(voice), chunks: chunks.length };
+}
+function elVoiceLabel(id) { const v = elVoices.find((x) => x.voice_id === id); return v ? v.name : id; }
+async function elLoadVoices() {
+  const key = $('apiKey').value.trim();
+  if (!key) { showMessage('err', 'ElevenLabs API 키를 먼저 넣어 주세요.'); return; }
+  saveKey('elevenlabs', key, $('rememberKey').checked);
+  const hdr = PROVIDERS.elevenlabs.headers(key);
+  $('elLoad').disabled = true;
+  try {
+    let all = [], token = null;
+    for (let i = 0; i < 5; i++) {
+      const url = `${BASES.elevenlabs}/v2/voices?page_size=100` + (token ? `&next_page_token=${encodeURIComponent(token)}` : '');
+      const d = await http(url, { headers: hdr });
+      all = all.concat((d && d.voices) || []);
+      if (!d || !d.has_more || !d.next_page_token) break;
+      token = d.next_page_token;
+    }
+    elVoices = all.map((v) => ({ voice_id: v.voice_id, name: v.name, category: v.category, labels: v.labels || {}, preview_url: v.preview_url || null }));
+    store.set('tts.voices.elevenlabs', JSON.stringify(elVoices));
+    fillElVoices(); renderCast();
+    showMessage('ok', `목소리 ${elVoices.length}개를 불러왔어요.`);
+  } catch (e) { showError(e); }
+  finally { $('elLoad').disabled = false; }
+}
+async function elFindLibrary() {
+  const key = $('apiKey').value.trim();
+  if (!key) { showMessage('err', 'ElevenLabs API 키를 먼저 넣어 주세요.'); return; }
+  const hdr = PROVIDERS.elevenlabs.headers(key);
+  const q = new URLSearchParams({ language: 'ko', page_size: '30' });
+  if ($('libGender').value) q.set('gender', $('libGender').value);
+  if ($('libAge').value) q.set('age', $('libAge').value);
+  if ($('libSearch').value.trim()) q.set('search', $('libSearch').value.trim());
+  $('libFind').disabled = true; $('libStatus').textContent = '찾는 중…';
+  const ul = $('libList'); ul.innerHTML = '';
+  try {
+    const d = await http(`${BASES.elevenlabs}/v1/shared-voices?${q}`, { headers: hdr });
+    const list = (d && d.voices) || [];
+    $('libStatus').textContent = list.length ? `${list.length}개` : '없어요. 검색어를 지우거나 성별을 바꿔 보세요.';
+    for (const v of list) {
+      const li = document.createElement('li');
+      const n = document.createElement('div'); n.className = 'n'; n.textContent = v.name; li.appendChild(n);
+      const t = document.createElement('div'); t.className = 'tags';
+      t.textContent = [v.gender, v.age, v.accent, v.descriptive, v.use_case, v.language, v.free_users_allowed ? '' : '유료 플랜만', v.live_moderation_enabled ? '검열 있음' : ''].filter(Boolean).join(' · ') + (v.description ? ' — ' + v.description.slice(0, 120) : '');
+      li.appendChild(t);
+      if (v.preview_url) { const a = document.createElement('audio'); a.controls = true; a.preload = 'none'; a.src = v.preview_url; li.appendChild(a); }
+      const act = document.createElement('div'); act.className = 'act';
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'small'; b.textContent = v.is_added_by_user ? '이미 내 목록에 있음' : '내 목록에 추가';
+      b.disabled = !!v.is_added_by_user;
+      const st = document.createElement('span'); st.className = 'status';
+      b.addEventListener('click', async () => {
+        b.disabled = true; st.textContent = '추가 중…';
+        try {
+          const r = await http(`${BASES.elevenlabs}/v1/voices/add/${encodeURIComponent(v.public_owner_id)}/${encodeURIComponent(v.voice_id)}`, { method: 'POST', headers: hdr, body: { new_name: v.name } });
+          const id = (r && r.voice_id) || v.voice_id;
+          elVoices.unshift({ voice_id: id, name: v.name, category: 'community', labels: { gender: v.gender, age: v.age, language: v.language || 'ko' }, preview_url: v.preview_url || null });
+          store.set('tts.voices.elevenlabs', JSON.stringify(elVoices));
+          store.set('tts.voice.elevenlabs', id);
+          fillElVoices(); $('elVoice').value = id; updateElPreview();
+          st.textContent = '추가됨 · 위 "내 목소리"에서 선택됐어요'; b.textContent = '추가됨';
+        } catch (e) { b.disabled = false; st.textContent = (e && e.message) || String(e); }
+      });
+      act.appendChild(b); act.appendChild(st); li.appendChild(act);
+      ul.appendChild(li);
+    }
+  } catch (e) { $('libStatus').textContent = ''; showError(e); }
+  finally { $('libFind').disabled = false; }
+}
+async function elDesignVoice() {
+  const key = $('apiKey').value.trim();
+  if (!key) { showMessage('err', 'ElevenLabs API 키를 먼저 넣어 주세요.'); return; }
+  const desc = $('vdDesc').value.trim(), text = $('vdText').value.trim();
+  if (desc.length < 20 || desc.length > 1000) { showMessage('err', '목소리 설명은 20~1000자여야 해요.'); return; }
+  if (text.length < 100 || text.length > 1000) { showMessage('err', '미리듣기 대본은 100~1000자여야 해요.'); return; }
+  const hdr = PROVIDERS.elevenlabs.headers(key);
+  $('vdMake').disabled = true; $('vdStatus').textContent = '만드는 중… (30초쯤)';
+  const ul = $('vdList');
+  for (const a of ul.querySelectorAll('audio')) { if (a.src && a.src.startsWith('blob:')) URL.revokeObjectURL(a.src); }
+  ul.innerHTML = '';
+  try {
+    const body = { voice_description: desc, model_id: 'eleven_ttv_v3', text, auto_generate_text: false, guidance_scale: Number($('vdGuidance').value) };
+    const d = await http(`${BASES.elevenlabs}/v1/text-to-voice/design?output_format=mp3_44100_128`, { method: 'POST', headers: hdr, body });
+    const previews = (d && d.previews) || [];
+    $('vdStatus').textContent = previews.length ? `후보 ${previews.length}개. 들어보고 저장하세요.` : '후보가 안 돌아왔어요.';
+    previews.forEach((p, i) => {
+      const li = document.createElement('li');
+      const n = document.createElement('div'); n.className = 'n'; n.textContent = `후보 ${i + 1}` + (p.duration_secs ? ` · ${Math.round(p.duration_secs)}초` : ''); li.appendChild(n);
+      const a = document.createElement('audio'); a.controls = true;
+      const mime = p.media_type && p.media_type.includes('/') ? p.media_type : 'audio/mpeg';
+      a.src = URL.createObjectURL(new Blob([b64ToBytes(p.audio_base_64)], { type: mime })); li.appendChild(a);
+      const act = document.createElement('div'); act.className = 'act';
+      const name = document.createElement('input'); name.type = 'text'; name.placeholder = '저장할 이름'; name.value = `쇼츠 남성 ${i + 1}`; name.style.maxWidth = '200px';
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'small'; b.textContent = '이 목소리 저장';
+      const st = document.createElement('span'); st.className = 'status';
+      b.addEventListener('click', async () => {
+        b.disabled = true; st.textContent = '저장 중…';
+        try {
+          const r = await http(`${BASES.elevenlabs}/v1/text-to-voice`, { method: 'POST', headers: hdr, body: { voice_name: name.value.trim() || `쇼츠 남성 ${i + 1}`, voice_description: desc, generated_voice_id: p.generated_voice_id, labels: { language: 'ko' } } });
+          const id = r && r.voice_id;
+          if (!id) throw new ApiError('저장은 됐는데 voice_id 가 안 돌아왔어요. "불러오기"를 눌러 확인하세요.', 0, r);
+          elVoices.unshift({ voice_id: id, name: r.name || name.value, category: 'generated', labels: r.labels || { language: 'ko' }, preview_url: r.preview_url || null });
+          store.set('tts.voices.elevenlabs', JSON.stringify(elVoices));
+          store.set('tts.voice.elevenlabs', id);
+          fillElVoices(); $('elVoice').value = id; updateElPreview();
+          st.textContent = '저장됨 · 위 "내 목소리"에서 선택됐어요'; b.textContent = '저장됨';
+        } catch (e) { b.disabled = false; st.textContent = (e && e.message) || String(e); }
+      });
+      act.appendChild(name); act.appendChild(b); act.appendChild(st); li.appendChild(act);
+      ul.appendChild(li);
+    });
+  } catch (e) { $('vdStatus').textContent = ''; showError(e); }
+  finally { $('vdMake').disabled = false; }
+}
+
+/* ---------- Typecast ---------- */
+function tcVoiceId() { return $('tcManual').value.trim() || $('tcVoice').value; }
+function tcPrompt(prevText, nextText) {
+  let emotion = $('tcEmotion').value;
+  const em = tcSelectedEmotions();
+  if (emotion !== 'smart' && em && !em.includes(emotion)) emotion = 'smart';
+  if (emotion === 'smart') { const p = { emotion_type: 'smart' }; if (prevText) p.previous_text = prevText; if (nextText) p.next_text = nextText; return p; }
+  return { emotion_type: 'preset', emotion_preset: emotion, emotion_intensity: Number($('tcIntensity').value) };
+}
+async function runTc(m, ctx, key, signal) {
+  const hdr = PROVIDERS.typecast.headers(key);
+  const voice = tcVoiceId();
+  if (!voice) throw new ApiError('목소리를 고르거나 voice_id 를 넣어 주세요.', 0);
+  const chunks = splitText(ctx.text, m.maxChars);
+  const blobs = []; let fellBack = false;
+  for (let i = 0; i < chunks.length; i++) {
+    setStatus(chunks.length > 1 ? `Typecast 생성 중… (${i + 1}/${chunks.length})` : 'Typecast가 음성을 만드는 중…', true);
+    const body = {
+      voice_id: voice, text: chunks[i], model: m.id, language: 'kor',
+      prompt: tcPrompt(chunks[i - 1], chunks[i + 1]),
+      output: { audio_format: 'mp3', audio_tempo: Number($('tcTempo').value), audio_pitch: Number($('tcPitch').value) },
+    };
+    let r;
+    try { r = await http(`${BASES.typecast}/v1/text-to-speech`, { method: 'POST', headers: hdr, body, signal, raw: true }); }
+    catch (e) {
+      // 목소리가 그 감정 프리셋을 지원하지 않으면 400/422 가 난다 → 문맥 자동(smart)으로 한 번 더
+      if (!(e instanceof ApiError) || !(e.status === 400 || e.status === 422) || body.prompt.emotion_type !== 'preset') throw e;
+      fellBack = true;
+      body.prompt = { emotion_type: 'smart' };
+      if (chunks[i - 1]) body.prompt.previous_text = chunks[i - 1];
+      if (chunks[i + 1]) body.prompt.next_text = chunks[i + 1];
+      r = await http(`${BASES.typecast}/v1/text-to-speech`, { method: 'POST', headers: hdr, body, signal, raw: true });
+    }
+    blobs.push(await r.blob());
+  }
+  const v = tcVoices.find((x) => x.voice_id === voice);
+  return { blob: new Blob(blobs, { type: 'audio/mpeg' }), ext: 'mp3', voice: v ? tcVoiceName(v) : voice, chunks: chunks.length,
+    note: fellBack ? '이 목소리가 고른 감정 프리셋을 거절해서 "문맥 자동"으로 만들었어요.' : '' };
+}
+async function tcLoadVoices() {
+  const key = $('apiKey').value.trim();
+  if (!key) { showMessage('err', 'Typecast API 키를 먼저 넣어 주세요.'); return; }
+  saveKey('typecast', key, $('rememberKey').checked);
+  $('tcLoad').disabled = true;
+  try {
+    const d = await http(`${BASES.typecast}/v3/voices?model=ssfm-v30`, { headers: PROVIDERS.typecast.headers(key) });
+    const list = Array.isArray(d) ? d : (d && (d.voices || d.items)) || [];
+    tcVoices = list.map((v) => ({ voice_id: v.voice_id, voice_name: v.voice_name, gender: v.gender, age: v.age, use_cases: v.use_cases || [], voice_type: v.voice_type, models: v.models || [], preview_url: v.preview_url || null }));
+    store.set('tts.voices.typecast', JSON.stringify(tcVoices));
+    fillTcVoices(); renderCast();
+    showMessage('ok', scriptMode === 'role' ? `목소리 ${tcVoices.length}개를 불러왔어요. 아래 배역 표에서 고르세요 (위 성별·나이대·용도 필터는 배역 표에는 적용되지 않습니다).` : `목소리 ${tcVoices.length}개를 불러왔어요. 위 성별·나이대·용도로 거르세요.`);
+  } catch (e) { showError(e); }
+  finally { $('tcLoad').disabled = false; }
+}
+
+/* ---------- 구글 Gemini TTS ---------- */
+function ggPrompt(m, text) {
+  const notes = $('ggNotes').value.trim();
+  const t = (m.tags && $('ggFastTag').checked && !/^\s*\[/.test(text)) ? '[very fast] ' + text : text;
+  return notes ? `${notes}\n${t}` : t;
+}
+async function runGg(m, ctx, key, signal) {
+  const hdr = PROVIDERS.google.headers(key);
+  const voice = $('ggVoice').value;
+  const chunks = splitText(ctx.text, m.maxChars);
+  const pcm = []; let rate = 24000;
+  for (let i = 0; i < chunks.length; i++) {
+    setStatus(chunks.length > 1 ? `구글 생성 중… (${i + 1}/${chunks.length})` : '구글이 음성을 만드는 중…', true);
+    const body = {
+      contents: [{ parts: [{ text: ggPrompt(m, chunks[i]) }] }],
+      generationConfig: { responseModalities: ['AUDIO'], speechConfig: { languageCode: 'ko-KR', voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
+    };
+    let part = null, lastErr = null, resp = null;
+    for (let attempt = 0; attempt < 3 && !part; attempt++) {
+      if (attempt) { setStatus(`구글 응답이 비어 다시 시도 (${attempt + 1}/3)…`, true); await sleep(MOCK ? 100 : 1500 * attempt, signal); }
+      try {
+        resp = await http(`${BASES.google}/v1beta/models/${m.id}:generateContent`, { method: 'POST', headers: hdr, body, signal });
+        const cand = resp && resp.candidates && resp.candidates[0];
+        const parts = (cand && cand.content && cand.content.parts) || [];
+        part = parts.find((p) => p.inlineData && p.inlineData.data) || null;
+        if (!part) {
+          const pf = resp && resp.promptFeedback;
+          if (pf && pf.blockReason) throw new ApiError(`구글 안전 필터가 대본을 거절했어요 (${pf.blockReason}). 거친 표현을 조금 순화해서 다시 시도하세요.`, 0, resp);
+          if (cand && cand.finishReason && cand.finishReason !== 'STOP') throw new ApiError(`생성이 중단됐어요 (${cand.finishReason}).`, 0, resp);
+          lastErr = new ApiError('응답에 음성이 없어요 (Preview 모델의 알려진 문제). 다시 시도해 보세요.', 0, resp);
+        }
+      } catch (e) {
+        if (e && e.name === 'AbortError') throw e;
+        if (e instanceof ApiError && e.status >= 500) { lastErr = e; continue; }
+        throw e;
+      }
+    }
+    if (!part) throw lastErr || new ApiError('응답에 음성이 없어요.', 0, resp);
+    const mm = /rate=(\d+)/.exec(part.inlineData.mimeType || '');
+    if (mm) rate = Number(mm[1]);
+    pcm.push(b64ToBytes(part.inlineData.data));
+  }
+  return { blob: pcmToWav(pcm, rate), ext: 'wav', voice, chunks: chunks.length };
+}
+
+/* ---------- 역할극 실행 ---------- */
+/* 화면의 글자 수 옆에 보여 줄 "몇 번에 나눠 보내나" — 실제 실행과 같은 묶기 규칙 */
+function roleRequestCount(m, parsed) {
+  const groups = groupLines(parsed.lines);
+  if (!groups.length) return 1;
+  if (m.id === 'eleven_v3') return packGroups(groups, 2000).length;
+  if (m.kind === 'tc') return packGroups(groups, 2000, 25).length;
+  if (m.kind === 'gg' && parsed.speakers.length === 2) return ggLineBatches(parsed.lines, m.maxChars, '').length;
+  return packGroups(groups, m.maxChars).flat().length;
+}
+function ggLineBatches(lines, maxChars, tag) {
+  const texts = lines.map((l) => `${l.speaker}: ${/^\s*\[/.test(l.text) ? '' : tag}${l.text}`);
+  const batches = []; let cur = [], len = 0;
+  for (const t of texts) { if (cur.length && len + t.length > maxChars) { batches.push(cur); cur = []; len = 0; } cur.push(t); len += t.length + 1; }
+  if (cur.length) batches.push(cur);
+  return batches;
+}
+/* 역할극용 연출 지시: 프리셋의 "한 사람 프로필" 블록은 빼고 지시문만 남긴 뒤, 배역 구분 지시를 붙인다 */
+function ggRoleNotes() {
+  let n = $('ggNotes').value.trim();
+  n = n.replace(/^# AUDIO PROFILE[\s\S]*?(?=## DIRECTOR'S NOTES|$)/, '').replace(/###\s*TRANSCRIPT\s*$/, '').trim();
+  return (n ? n + '\n' : '') + 'Make each speaker sound like a distinct person. Do not read speaker names or these notes aloud.';
+}
+/* 화자 덩어리를 한 요청 글자 한도(maxChars)에 맞춰 묶는다. 한 덩어리가 한도를 넘으면 같은 화자로 쪼갠다. */
+function packGroups(groups, maxChars, maxItems) {
+  const batches = []; let cur = [], len = 0;
+  const flush = () => { if (cur.length) batches.push(cur); cur = []; len = 0; };
+  for (const g of groups) {
+    for (const piece of splitText(g.text, maxChars)) {
+      if (cur.length && (len + piece.length > maxChars || (maxItems && cur.length >= maxItems))) flush();
+      cur.push({ speaker: g.speaker, text: piece }); len += piece.length;
+    }
+  }
+  flush();
+  return batches;
+}
+async function runElRole(m, ctx, key, signal) {
+  const hdr = PROVIDERS.elevenlabs.headers(key);
+  const rc = roleCtx();
+  const blobs = [];
+  if (m.id === 'eleven_v3') {
+    const uniq = new Set(Object.values(rc.voices));
+    if (uniq.size > 10) throw new ApiError('ElevenLabs 대화 API는 목소리를 10개까지만 받습니다. 배역을 줄여 주세요.', 0);
+    const batches = packGroups(rc.groups, 2000);
+    for (let i = 0; i < batches.length; i++) {
+      setStatus(batches.length > 1 ? `ElevenLabs 대화 생성 중… (${i + 1}/${batches.length})` : 'ElevenLabs가 대화를 만드는 중…', true);
+      const body = { inputs: batches[i].map((b) => ({ text: b.text, voice_id: rc.voices[b.speaker] })), model_id: m.id, language_code: 'ko', settings: { stability: Number($('elV3Stability').value) }, apply_text_normalization: 'auto' };
+      const r = await http(`${BASES.elevenlabs}/v1/text-to-dialogue?output_format=mp3_44100_128`, { method: 'POST', headers: hdr, body, signal, raw: true });
+      blobs.push(await r.blob());
+    }
+  } else {
+    const items = packGroups(rc.groups, m.maxChars).flat();
+    for (let i = 0; i < items.length; i++) {
+      setStatus(`ElevenLabs 생성 중… (${i + 1}/${items.length}) ${items[i].speaker}`, true);
+      const body = { text: items[i].text, model_id: m.id, voice_settings: elSettings(m), apply_text_normalization: 'auto' };
+      if (m.id !== 'eleven_multilingual_v2') body.language_code = 'ko';
+      if (i > 0) body.previous_text = items[i - 1].text;
+      if (i < items.length - 1) body.next_text = items[i + 1].text;
+      const r = await http(`${BASES.elevenlabs}/v1/text-to-speech/${encodeURIComponent(rc.voices[items[i].speaker])}?output_format=mp3_44100_128`, { method: 'POST', headers: hdr, body, signal, raw: true });
+      blobs.push(await r.blob());
+    }
+  }
+  return { blob: new Blob(blobs, { type: 'audio/mpeg' }), ext: 'mp3', voice: roleVoiceText(rc), chunks: blobs.length, role: true };
+}
+const TC_ROLE_PAUSE = 0.25;
+function tcPromptFor(voiceId) {
+  let emotion = $('tcEmotion').value;
+  const v = tcVoices.find((x) => x.voice_id === voiceId);
+  const mm = v && Array.isArray(v.models) ? (v.models.find((x) => x.version === 'ssfm-v30') || v.models[0]) : null;
+  const em = mm && Array.isArray(mm.emotions) ? mm.emotions : null;
+  if (emotion !== 'smart' && em && !em.includes(emotion)) emotion = 'smart';
+  return emotion === 'smart' ? { emotion_type: 'smart' } : { emotion_type: 'preset', emotion_preset: emotion, emotion_intensity: Number($('tcIntensity').value) };
+}
+async function runTcRole(m, ctx, key, signal) {
+  const hdr = PROVIDERS.typecast.headers(key);
+  const rc = roleCtx();
+  const output = { audio_format: 'mp3', audio_tempo: Number($('tcTempo').value), audio_pitch: Number($('tcPitch').value) };
+  // 한 요청: 세그먼트 50개 이하, 글자 2,000자 이하. 화자가 바뀌면 사이에 짧은 쉼.
+  const batches = packGroups(rc.groups, 2000, 25);
+  const blobs = []; let fellBack = false;
+  for (let i = 0; i < batches.length; i++) {
+    setStatus(batches.length > 1 ? `Typecast 대화 생성 중… (${i + 1}/${batches.length})` : 'Typecast가 대화를 만드는 중…', true);
+    const prevBatchSpeaker = i > 0 ? batches[i - 1][batches[i - 1].length - 1].speaker : null;
+    const build = (smart) => {
+      const segments = [];
+      batches[i].forEach((b, j) => {
+        const before = j > 0 ? batches[i][j - 1].speaker : prevBatchSpeaker; // 묶음 경계에서도 화자가 바뀌면 쉼
+        if (before !== null && before !== b.speaker) segments.push({ type: 'pause', duration_seconds: TC_ROLE_PAUSE });
+        segments.push({ type: 'tts', voice_id: rc.voices[b.speaker], text: b.text, model: m.id, language: 'kor', prompt: smart ? { emotion_type: 'smart' } : tcPromptFor(rc.voices[b.speaker]), output });
+      });
+      return { segments };
+    };
+    const first = build(false);
+    const hadPreset = first.segments.some((x) => x.type === 'tts' && x.prompt.emotion_type === 'preset');
+    let r;
+    try { r = await http(`${BASES.typecast}/v1/text-to-speech/compose`, { method: 'POST', headers: hdr, body: first, signal, raw: true }); }
+    catch (e) {
+      if (!(e instanceof ApiError) || !(e.status === 400 || e.status === 422) || !hadPreset) throw e;
+      fellBack = true;
+      r = await http(`${BASES.typecast}/v1/text-to-speech/compose`, { method: 'POST', headers: hdr, body: build(true), signal, raw: true });
+    }
+    blobs.push(await r.blob());
+  }
+  return { blob: new Blob(blobs, { type: 'audio/mpeg' }), ext: 'mp3', voice: roleVoiceText(rc), chunks: blobs.length, role: true,
+    note: fellBack ? '어떤 목소리가 고른 감정 프리셋을 거절해서 "문맥 자동"으로 만들었어요.' : '' };
+}
+async function ggGenerate(m, promptText, speechConfig, key, signal) {
+  const hdr = PROVIDERS.google.headers(key);
+  const body = { contents: [{ parts: [{ text: promptText }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig } };
+  let part = null, lastErr = null, resp = null;
+  for (let attempt = 0; attempt < 3 && !part; attempt++) {
+    if (attempt) { setStatus(`구글 응답이 비어 다시 시도 (${attempt + 1}/3)…`, true); await sleep(MOCK ? 100 : 1500 * attempt, signal); }
+    try {
+      resp = await http(`${BASES.google}/v1beta/models/${m.id}:generateContent`, { method: 'POST', headers: hdr, body, signal });
+      const cand = resp && resp.candidates && resp.candidates[0];
+      const parts = (cand && cand.content && cand.content.parts) || [];
+      part = parts.find((p) => p.inlineData && p.inlineData.data) || null;
+      if (!part) {
+        const pf = resp && resp.promptFeedback;
+        if (pf && pf.blockReason) throw new ApiError(`구글 안전 필터가 대본을 거절했어요 (${pf.blockReason}). 거친 표현을 조금 순화해서 다시 시도하세요.`, 0, resp);
+        if (cand && cand.finishReason && cand.finishReason !== 'STOP') throw new ApiError(`생성이 중단됐어요 (${cand.finishReason}).`, 0, resp);
+        lastErr = new ApiError('응답에 음성이 없어요 (Preview 모델의 알려진 문제). 다시 시도해 보세요.', 0, resp);
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw e;
+      if (e instanceof ApiError && e.status >= 500) { lastErr = e; continue; }
+      throw e;
+    }
+  }
+  if (!part) throw lastErr || new ApiError('응답에 음성이 없어요.', 0, resp);
+  const mm = /rate=(\d+)/.exec(part.inlineData.mimeType || '');
+  return { pcm: b64ToBytes(part.inlineData.data), rate: mm ? Number(mm[1]) : 24000 };
+}
+async function runGgRole(m, ctx, key, signal) {
+  const rc = roleCtx();
+  const notes = ggRoleNotes();
+  const tag = (m.tags && $('ggFastTag').checked) ? '[very fast] ' : '';
+  const pcm = []; let rate = 24000;
+  if (rc.speakers.length === 2) {
+    // 구글 다중 화자: 정확히 2명일 때 한 요청. 대본은 "이름: 대사" 줄 그대로, 지시문 뒤에 대본 표시를 둔다.
+    const speechConfig = { languageCode: 'ko-KR', multiSpeakerVoiceConfig: { speakerVoiceConfigs: rc.speakers.map((sp) => ({ speaker: sp, voiceConfig: { prebuiltVoiceConfig: { voiceName: rc.voices[sp] } } })) } };
+    const batches = ggLineBatches(rc.lines, m.maxChars, tag);
+    for (let i = 0; i < batches.length; i++) {
+      setStatus(batches.length > 1 ? `구글 대화 생성 중… (${i + 1}/${batches.length})` : '구글이 대화를 만드는 중…', true);
+      const head = `TTS the following conversation between ${rc.speakers.join(' and ')}:`;
+      const promptText = notes + '\n' + head + '\n### TRANSCRIPT\n' + batches[i].join('\n');
+      const out = await ggGenerate(m, promptText, speechConfig, key, signal);
+      pcm.push(out.pcm); rate = out.rate;
+    }
+  } else {
+    // 1명 또는 3명 이상: 화자 덩어리마다 단일 화자 요청
+    const items = packGroups(rc.groups, m.maxChars).flat();
+    for (let i = 0; i < items.length; i++) {
+      setStatus(`구글 생성 중… (${i + 1}/${items.length}) ${items[i].speaker}`, true);
+      const speechConfig = { languageCode: 'ko-KR', voiceConfig: { prebuiltVoiceConfig: { voiceName: rc.voices[items[i].speaker] } } };
+      const t = (tag && !/^\s*\[/.test(items[i].text)) ? tag + items[i].text : items[i].text;
+      const out = await ggGenerate(m, notes + '\n### TRANSCRIPT\n' + t, speechConfig, key, signal);
+      pcm.push(out.pcm); rate = out.rate;
+    }
+  }
+  return { blob: pcmToWav(pcm, rate), ext: 'wav', voice: roleVoiceText(rc), chunks: pcm.length, role: true };
+}
+
+/* ---------- 실행 ---------- */
+const RUNNERS = { el: runEl, tc: runTc, gg: runGg };
+const ROLE_RUNNERS = { el: runElRole, tc: runTcRole, gg: runGgRole };
+function showError(e) {
+  if (e && e.name === 'AbortError') { showMessage('warn', '중단했어요. 이미 보낸 요청은 요금이 붙을 수 있어요.'); return; }
+  const raw = e && e.body ? (typeof e.body === 'string' ? e.body : JSON.stringify(e.body, null, 1)).slice(0, 1500) : '';
+  showMessage('err', (e && e.message) || String(e), raw);
+}
+async function generate() {
+  const m = currentModel();
+  const text = scriptText();
+  const key = $('apiKey').value.trim();
+  showMessage(null);
+  if (!key) { showMessage('err', PROVIDERS[m.provider].keyLabel + '를 넣어 주세요.'); $('apiKey').focus(); return; }
+  if (!text) { showMessage('err', '대본을 적어 주세요.'); $('script').focus(); return; }
+  saveKey(m.provider, key, $('rememberKey').checked);
+  store.set('tts.model', m.id);
+  store.set('tts.voice.google', $('ggVoice').value);
+  if ($('elVoice').value) store.set('tts.voice.elevenlabs', $('elVoice').value);
+  if ($('tcVoice').value) store.set('tts.voice.typecast', $('tcVoice').value);
+
+  const abort = new AbortController();
+  job = { abort };
+  $('generate').disabled = true; $('cancel').hidden = false; $('result').hidden = true;
+  const t0 = Date.now();
+  try {
+    const out = await (scriptMode === 'role' ? ROLE_RUNNERS : RUNNERS)[m.kind](m, { text }, key, abort.signal);
+    showResult(m, text, out, Math.round((Date.now() - t0) / 1000));
+  } catch (e) { showError(e); }
+  finally { job = null; $('generate').disabled = false; $('cancel').hidden = true; setStatus('', false); }
+}
+function showResult(m, text, out, secs) {
+  const a = $('audio');
+  if (lastBlobUrl) { URL.revokeObjectURL(lastBlobUrl); lastBlobUrl = null; }
+  lastBlobUrl = URL.createObjectURL(out.blob);
+  a.src = lastBlobUrl;
+  $('download').href = lastBlobUrl;
+  $('download').download = `narration-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.${out.ext}`;
+  const cost = estimateCost(m, text);
+  const meta = [`${PROVIDERS[m.provider].label} · ${m.label}`, out.role ? `역할극 · ${out.voice}` : `목소리 ${out.voice}`, `${countChars(text).toLocaleString('ko-KR')}자${out.chunks > 1 ? ` (${out.chunks}번에 나눠 보냄)` : ''}`,
+    `${Math.round(out.blob.size / 1024)} KB · ${out.ext.toUpperCase()}`, `걸린 시간 ${secs}초`, `예상 비용 ${cost.text}`].join(' · ');
+  $('resultMeta').textContent = meta;
+  $('result').hidden = false;
+  showMessage('ok', '완성! 재생해 보고 내려받기 버튼으로 저장하세요.' + (out.note ? ' ' + out.note : ''));
+  a.play().catch(() => {});
+  addHistory({ t: Date.now(), provider: m.provider, model: m.label, voice: (out.role ? '역할극 ' : '') + out.voice, chars: countChars(text), cost: cost.text, text: text.slice(0, 80) });
+  a.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function cancelJob() { if (job) job.abort.abort(); }
+
+/* ---------- 기록 ---------- */
+function getHistory() { return loadJson('tts.history', []); }
+function addHistory(item) { const h = getHistory(); h.unshift(item); store.set('tts.history', JSON.stringify(h.slice(0, 30))); renderHistory(); }
+function renderHistory() {
+  const ul = $('history'); ul.innerHTML = '';
+  const h = getHistory();
+  if (!h.length) { const li = document.createElement('li'); li.textContent = '아직 없어요. (음성 파일은 저장되지 않고 기록만 남아요.)'; ul.appendChild(li); return; }
+  for (const it of h) {
+    const li = document.createElement('li');
+    li.textContent = `${new Date(it.t).toLocaleString('ko-KR')} · ${it.model} · ${it.voice || ''} · ${it.chars}자 · ${it.cost || ''} · "${it.text}"`;
+    ul.appendChild(li);
+  }
+}
+
+/* ---------- 이벤트 ---------- */
+function bind() {
+  $('model').addEventListener('change', () => { refreshOptions(); });
+  $('toggleKey').addEventListener('click', () => { const i = $('apiKey'); i.type = i.type === 'password' ? 'text' : 'password'; $('toggleKey').textContent = i.type === 'password' ? '보기' : '숨기기'; $('toggleKey').setAttribute('aria-pressed', String(i.type === 'text')); });
+  $('clearKey').addEventListener('click', () => { const p = currentModel().provider; $('apiKey').value = ''; saveKey(p, '', false); clearStoredKey(p); $('rememberKey').checked = false; });
+  $('rememberKey').addEventListener('change', () => { const p = currentModel().provider; saveKey(p, $('apiKey').value.trim(), $('rememberKey').checked); });
+  $('apiKey').addEventListener('change', () => { const p = currentModel().provider; saveKey(p, $('apiKey').value.trim(), $('rememberKey').checked); });
+  $('elLoad').addEventListener('click', elLoadVoices);
+  $('elVoice').addEventListener('change', () => { store.set('tts.voice.elevenlabs', $('elVoice').value); updateElPreview(); });
+  $('libFind').addEventListener('click', elFindLibrary);
+  $('vdMake').addEventListener('click', elDesignVoice);
+  $('vdGuidance').addEventListener('input', refreshRangeLabels);
+  $('tcLoad').addEventListener('click', tcLoadVoices);
+  for (const id of ['tcGender', 'tcAge', 'tcUse']) $(id).addEventListener('change', fillTcVoices);
+  $('tcVoice').addEventListener('change', () => { store.set('tts.voice.typecast', $('tcVoice').value); updateTcPreview(); refreshTcEmotionHint(); });
+  $('tcManual').addEventListener('input', refreshTcEmotionHint);
+  $('ggVoice').addEventListener('change', () => store.set('tts.voice.google', $('ggVoice').value));
+  let castTimer = null;
+  $('script').addEventListener('input', () => { refreshCounter(); if (scriptMode === 'role') { clearTimeout(castTimer); castTimer = setTimeout(renderCast, 250); } });
+  $('tabSolo').addEventListener('click', () => setScriptMode('solo'));
+  $('tabRole').addEventListener('click', () => setScriptMode('role'));
+  $('roleExample').addEventListener('click', () => { $('script').value = ROLE_EXAMPLE; refreshCounter(); renderCast(); });
+  $('preset').addEventListener('change', () => applyPreset($('preset').value));
+  for (const id of ['elStability', 'elSimilarity', 'elStyle', 'elSpeed', 'tcIntensity', 'tcTempo', 'tcPitch']) $(id).addEventListener('input', () => { refreshRangeLabels(); markCustom(); });
+  for (const id of ['elV3Stability', 'elBoost', 'tcEmotion', 'ggNotes', 'ggFastTag']) $(id).addEventListener(id === 'ggNotes' ? 'input' : 'change', () => { markCustom(); if (id === 'tcEmotion') refreshTcEmotionHint(); if (id === 'ggFastTag') refreshCost(); });
+  $('generate').addEventListener('click', generate);
+  $('cancel').addEventListener('click', cancelJob);
+  $('clearHistory').addEventListener('click', () => { store.del('tts.history'); renderHistory(); });
+}
+
+fillModels();
+fillGgVoices();
+fillElVoices();
+fillTcVoices();
+fillPriceTable();
+bind();
+applyPreset('shorts');
+refreshOptions();
+setScriptMode(scriptMode);
+renderHistory();
+window.__tts = { MODELS, PROVIDERS, BASES, estimateCost, splitText, countSpoken, currentModel, parseDialogue, groupLines, packGroups }; // 테스트용
+})();
+</script>
+</body>
+</html>
