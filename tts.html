@@ -97,7 +97,8 @@
   .cast { display:grid; grid-template-columns:minmax(70px,1fr) 2fr; gap:8px 10px; align-items:center; margin:8px 0; }
   .cast .nm { font-weight:700; font-size:14px; word-break:break-all; }
   .cast .vsel { display:flex; gap:6px; }
-  .cast .vsel select { flex:2; min-width:0; } .cast .vsel input { flex:1; min-width:0; font-size:13px; }
+  .cast .vsel select { flex:2; min-width:0; } .cast .vsel input { flex:1; min-width:14ch; font-size:13px; }
+  @media (max-width:640px) { .cast { grid-template-columns:1fr; gap:4px 0; } .cast .nm { margin-top:8px; } .cast .vsel { flex-wrap:wrap; } .cast .vsel select, .cast .vsel input { flex:1 1 100%; } }
   .counter { font-size:13px; color:var(--muted); text-align:right; margin-top:4px; }
   .counter.over { color:var(--err-ink); font-weight:700; }
 </style>
@@ -127,6 +128,7 @@
   <label class="inline"><input type="checkbox" id="rememberKey"> 이 브라우저에 키 저장</label>
 
   <h2>3. 목소리</h2>
+  <p class="notice" id="roleVoiceNote" hidden>역할극에서는 목소리를 아래 <strong>배역 → 목소리</strong> 표에서 배역마다 고릅니다. 여기서는 불러오기·찾기·만들기만 하세요.</p>
 
   <!-- ElevenLabs -->
   <div class="prov" id="provElevenlabs" hidden>
@@ -135,7 +137,7 @@
       <select id="elVoice"><option value="">— 불러오기를 누르세요 —</option></select>
       <button type="button" id="elLoad" class="small">불러오기</button>
     </div>
-    <div class="row">
+    <div class="row" id="elManualRow">
       <div><label for="elManual">또는 voice_id 직접 입력 <span class="hint">위 목록보다 우선합니다.</span></label><input id="elManual" type="text" placeholder="예) JBFqnCBsd6RMkjVDRZzb" spellcheck="false"></div>
     </div>
     <div id="elPreviewWrap" hidden><audio id="elPreview" controls preload="none"></audio></div>
@@ -180,14 +182,16 @@
       <button type="button" id="tcLoad" class="small">불러오기</button>
     </div>
     <div id="tcPreviewWrap" hidden><audio id="tcPreview" controls preload="none"></audio></div>
-    <label for="tcManual">또는 voice_id 직접 입력 <span class="hint">tc_ 또는 uc_ 로 시작. 위 목록보다 우선합니다.</span></label>
-    <input id="tcManual" type="text" placeholder="예) tc_672c5f5ce59fac2a48faeaee" spellcheck="false">
+    <div id="tcManualRow"><label for="tcManual">또는 voice_id 직접 입력 <span class="hint">tc_ 또는 uc_ 로 시작. 위 목록보다 우선합니다.</span></label>
+    <input id="tcManual" type="text" placeholder="예) tc_672c5f5ce59fac2a48faeaee" spellcheck="false"></div>
   </div>
 
   <!-- Google -->
   <div class="prov" id="provGoogle" hidden>
+    <div id="ggVoiceRow">
     <label for="ggVoice">목소리 <span class="hint">구글은 30개 고정. 성별·음높이는 문서에 없으니 <a href="https://aistudio.google.com/generate-speech" target="_blank" rel="noopener">AI Studio</a>에서 들어보고 고르세요.</span></label>
     <select id="ggVoice"></select>
+    </div>
   </div>
 
   <h2>4. 대본</h2>
@@ -305,7 +309,7 @@
       <li><strong>감탄사·웃음</strong>: ElevenLabs v3와 구글은 대본 안에 <code>[laughs]</code> <code>[sighs]</code> <code>[gasp]</code> 같은 영어 태그를 넣습니다. Typecast는 태그가 없고 감정 프리셋·강도로 조절합니다.</li>
       <li><strong>질문형 어미</strong>: 어느 서비스도 억양을 직접 조절하는 수단이 없습니다. 물음표를 꼭 붙이고, 구글은 연출 지시에 "questions rise sharply at the end"를 둡니다.</li>
       <li><strong>비속어</strong>: 세 회사 모두 비속어 자체를 금지하는 조항은 없지만, 구글은 안전 필터에 걸려 거절될 수 있고 Typecast는 음란·성인 표현 생성을 금지합니다. 거절되면 그 부분만 순화해 다시 시도하세요.</li>
-      <li><strong>역할극</strong>: 대본 위 "역할극" 탭을 누르고 줄마다 <code>이름: 대사</code> 로 적으면 배역마다 목소리를 고를 수 있습니다. ElevenLabs v3는 대화 전용 API로 한 번에(한 요청 2,000자·목소리 10개), Typecast는 줄마다 목소리를 바꿔 한 파일로(한 요청 2,000자·50조각), 구글은 2명까지 한 요청으로 만듭니다. 그 밖의 경우는 줄마다 따로 만들어 이어 붙입니다.</li>
+      <li><strong>역할극</strong>: 대본 위 "역할극" 탭을 누르고 줄마다 <code>이름: 대사</code> 로 적으면 배역마다 목소리를 고를 수 있습니다. 같은 사람이 이어 말하면 한 차례로 묶입니다. ElevenLabs v3는 대화 전용 API로 한 번에(2,000자씩·목소리 10개), Typecast는 말 차례마다 목소리를 바꿔 한 파일로(25차례·2,000자씩), 구글은 정확히 2명일 때 한 요청으로 만듭니다. 그 밖의 경우는 말 차례마다 따로 만들어 이어 붙입니다.</li>
       <li><strong>ElevenLabs Flash v2.5</strong>는 숫자·날짜를 기대대로 읽지 않을 수 있습니다. 숫자는 한글로 풀어 쓰세요. 긴 대본은 이 페이지가 모델 한도(v3 5,000자 · Flash 40,000자 · Multilingual 10,000자 · Typecast 2,000자)씩 문장 단위로 나눠 보내고 이어 붙입니다.</li>
     </ul>
   </details>
@@ -565,6 +569,7 @@ function insertAtCursor(ta, text) {
   ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
   ta.selectionStart = ta.selectionEnd = s + text.length;
   ta.focus(); refreshCounter();
+  if (scriptMode === 'role') renderCast();
 }
 function fillPriceTable() {
   const tb = $('priceTable'); tb.innerHTML = '';
@@ -626,10 +631,16 @@ function countSpoken(t) { return t.replace(/\[[^\]]*\]|<\|[^|]*\|>|<[^>]+>/g, ''
 function refreshCounter() {
   const m = currentModel(); const t = scriptText();
   const n = countChars(t);
-  const chunks = n > m.maxChars ? splitText(t, m.maxChars).length : 1;
   const c = $('counter');
-  c.textContent = `${n.toLocaleString('ko-KR')}자` + (chunks > 1 ? ` · ${m.maxChars.toLocaleString('ko-KR')}자씩 ${chunks}번에 나눠 보냄` : '');
-  c.classList.toggle('over', chunks > 1);
+  if (scriptMode === 'role') {
+    const k = t ? roleRequestCount(m, parseDialogue(t)) : 1;
+    c.textContent = `${n.toLocaleString('ko-KR')}자` + (k > 1 ? ` · 역할극 ${k}번에 나눠 보냄` : '');
+    c.classList.toggle('over', k > 1);
+  } else {
+    const chunks = n > m.maxChars ? splitText(t, m.maxChars).length : 1;
+    c.textContent = `${n.toLocaleString('ko-KR')}자` + (chunks > 1 ? ` · ${m.maxChars.toLocaleString('ko-KR')}자씩 ${chunks}번에 나눠 보냄` : '');
+    c.classList.toggle('over', chunks > 1);
+  }
   refreshCost();
 }
 /* 문장 경계(마침표·물음표·느낌표·말줄임표 뒤의 공백, 또는 줄바꿈)에서 잘라 max 이하 덩어리로.
@@ -667,19 +678,23 @@ function parseDialogue(text) {
   for (const raw of text.replace(/\r\n/g, '\n').split('\n')) {
     const line = raw.trim();
     if (!line) continue;
-    const m = /^([^:：]{1,20}?)\s*[:：]\s*(.*)$/.exec(line);
-    if (m && !/^\d+$/.test(m[1].trim()) && !/^https?$/i.test(m[1].trim())) {
-      const sp = m[1].trim();
-      if (!speakers.includes(sp)) speakers.push(sp);
-      lines.push({ speaker: sp, text: m[2].trim() });
+    // 줄 앞의 [태그]는 이름이 아니라 대사에 붙는다: "[laughs] 민수: 하하" → 민수 / "[laughs] 하하"
+    const tg = /^((?:\[[^\]]*\]\s*)+)/.exec(line);
+    const rest = tg ? line.slice(tg[0].length) : line;
+    const m = /^([^:：]{1,20}?)\s*[:：]\s*(.*)$/.exec(rest);
+    const nm = m ? m[1].trim() : '';
+    const looksLikeTime = m && /(^|\s)\d{1,2}$/.test(nm) && /^\d{2}(?!\d)/.test(m[2]); // "오후 3:30에" 는 이름이 아님
+    if (m && nm && !/^\d+$/.test(nm) && !looksLikeTime && !/^https?$/i.test(nm)) {
+      lines.push({ speaker: nm, text: ((tg ? tg[1] : '') + m[2]).trim() });
     } else if (lines.length) {
       lines[lines.length - 1].text = (lines[lines.length - 1].text + ' ' + line).trim();
     } else {
-      if (!speakers.includes('나레이터')) speakers.push('나레이터');
       lines.push({ speaker: '나레이터', text: line });
     }
   }
-  return { lines: lines.filter((l) => l.text), speakers };
+  const kept = lines.filter((l) => l.text);
+  for (const l of kept) if (!speakers.includes(l.speaker)) speakers.push(l.speaker);
+  return { lines: kept, speakers };
 }
 /* 같은 화자가 연달아 말하면 한 덩어리로 */
 function groupLines(lines) {
@@ -694,7 +709,7 @@ function castKey() { return 'tts.cast.' + currentModel().provider; }
 function castVoiceOptions() {
   const m = currentModel();
   if (m.kind === 'gg') return GG_VOICES.map(([n, ko]) => ({ id: n, label: `${n} — ${ko}` }));
-  if (m.kind === 'tc') return tcVoices.map((v) => ({ id: v.voice_id, label: `${tcVoiceName(v)} (${[v.gender === 'male' ? '남' : v.gender === 'female' ? '여' : '', TC_AGE[v.age] || v.age].filter(Boolean).join(' · ')})` }));
+  if (m.kind === 'tc') return tcVoices.map((v) => ({ id: v.voice_id, label: `${tcVoiceName(v)} (${[v.gender === 'male' ? '남' : v.gender === 'female' ? '여' : '', TC_AGE[v.age] || v.age, (v.use_cases || []).slice(0, 2).join('/')].filter(Boolean).join(' · ')})` }));
   return elVoices.map((v) => ({ id: v.voice_id, label: v.name + (v.labels && v.labels.gender ? ` (${v.labels.gender})` : '') }));
 }
 const GG_ROLE_DEFAULTS = ['Fenrir', 'Kore', 'Puck', 'Zubenelgenubi', 'Leda', 'Charon', 'Aoede', 'Algenib'];
@@ -706,7 +721,9 @@ function renderCast() {
   const { speakers } = parseDialogue(scriptText());
   const saved = loadJson(castKey(), {});
   const opts = castVoiceOptions();
-  const prev = castVoices();
+  const prev = list.dataset.provider === m.provider ? castVoices() : {}; // 다른 회사의 목소리 id 가 넘어오지 않게
+  list.dataset.provider = m.provider;
+  const used = new Set(speakers.map((sp) => (prev[sp] && prev[sp].sel) || saved[sp]).filter(Boolean));
   list.innerHTML = '';
   speakers.forEach((sp, i) => {
     const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = sp; list.appendChild(nm);
@@ -716,10 +733,12 @@ function renderCast() {
     for (const o of opts) { const op = document.createElement('option'); op.value = o.id; op.textContent = o.label; sel.appendChild(op); }
     // 화면에 이미 있던 값이 우선, 없으면 저장된 값(목록에 있으면 선택, 없으면 직접 입력 칸에)
     const savedInList = saved[sp] && opts.some((o) => o.id === saved[sp]);
-    let want = prev[sp] ? prev[sp].sel : (savedInList ? saved[sp] : '');
-    let manualWant = prev[sp] ? prev[sp].manual : (saved[sp] && !savedInList ? saved[sp] : '');
-    if (!want && !manualWant && m.kind === 'gg') want = GG_ROLE_DEFAULTS[i % GG_ROLE_DEFAULTS.length];
+    const pv = prev[sp] && (prev[sp].sel || prev[sp].manual) ? prev[sp] : null;
+    let want = pv ? pv.sel : (savedInList ? saved[sp] : '');
+    let manualWant = pv ? pv.manual : (saved[sp] && !savedInList ? saved[sp] : '');
+    if (!want && !manualWant && m.kind === 'gg') { want = GG_ROLE_DEFAULTS.find((v) => !used.has(v)) || GG_ROLE_DEFAULTS[i % GG_ROLE_DEFAULTS.length]; used.add(want); }
     if ([...sel.options].some((o) => o.value === want)) sel.value = want;
+    sel.disabled = !opts.length;
     cell.appendChild(sel);
     if (m.kind !== 'gg') {
       const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = '또는 voice_id'; inp.spellcheck = false; inp.dataset.speaker = sp; inp.setAttribute('aria-label', sp + ' voice_id 직접 입력');
@@ -734,7 +753,7 @@ function renderCast() {
     }
     list.appendChild(cell);
   });
-  const limitNote = m.kind === 'gg' ? '구글은 한 요청에 2명까지 자연스럽게 주고받고, 3명 이상이면 줄마다 따로 만들어 이어 붙입니다.' : m.id === 'eleven_v3' ? 'v3는 대화 전용 API(Text to Dialogue)로 한 번에 만들어 주고받는 호흡이 자연스럽습니다. 목소리는 10개까지.' : m.kind === 'tc' ? 'Typecast는 줄마다 목소리를 바꿔 한 파일로 합쳐 주고, 화자가 바뀔 때 0.25초 쉽니다.' : '이 모델은 줄마다 따로 만들어 이어 붙입니다. 주고받는 호흡은 v3가 더 자연스러워요.';
+  const limitNote = m.kind === 'gg' ? '구글은 정확히 2명일 때 한 요청으로 자연스럽게 주고받고, 1명이거나 3명 이상이면 말 차례마다 따로 만들어 이어 붙입니다.' : m.id === 'eleven_v3' ? 'v3는 대화 전용 API(Text to Dialogue)로 한 번에 만들어 주고받는 호흡이 자연스럽습니다. 목소리는 10개까지, 2,000자씩 나눠 보냄.' : m.kind === 'tc' ? 'Typecast는 말 차례마다 목소리를 바꿔 한 파일로 합쳐 주고, 화자가 바뀔 때 0.25초 쉽니다 (25차례·2,000자씩 나눠 보냄).' : '이 모델은 줄마다 따로 만들어 이어 붙입니다. 주고받는 호흡은 v3가 더 자연스러워요.';
   $('castHint').textContent = speakers.length ? `${speakers.length}명: ${speakers.join(', ')}. ${limitNote}` : '대본에 "이름: 대사" 줄을 적으면 여기 배역이 나타납니다.';
 }
 function castVoices() {
@@ -772,8 +791,10 @@ function setScriptMode(next) {
   $('tabSolo').setAttribute('aria-selected', String(next === 'solo'));
   $('tabRole').setAttribute('aria-selected', String(next === 'role'));
   $('scriptHint').textContent = next === 'role'
-    ? '줄마다 "이름: 대사" 로 적으세요 (예: 민수: 야 이거 봤어?). 이름 없는 줄은 앞 사람이 이어 말합니다.'
+    ? '줄마다 "이름: 대사" 로 적으세요 (예: 민수: 야 이거 봤어?). 이름 없는 줄은 앞 사람이 이어 말하고, 맨 첫 줄에 이름이 없으면 "나레이터" 배역이 됩니다.'
     : '말하는 그대로 적으세요. 숫자는 한글로 풀어 쓰면(예: 430도 → 사백삼십 도) 어느 모델이든 안전합니다.';
+  $('roleVoiceNote').hidden = next !== 'role';
+  for (const id of ['elManualRow', 'tcManualRow', 'ggVoiceRow']) $(id).hidden = next === 'role';
   $('script').placeholder = next === 'role' ? '민수: 야, 수성이 태양이랑 제일 가깝다며?\n지혜: 응. 낮에는 사백삼십 도까지 올라가.' : '예) 여기 있는 게 수성이거든요? 근데 얘 태양이랑 진짜 가깝습니다.';
   renderCast(); refreshCounter();
 }
@@ -1075,7 +1096,7 @@ async function tcLoadVoices() {
     tcVoices = list.map((v) => ({ voice_id: v.voice_id, voice_name: v.voice_name, gender: v.gender, age: v.age, use_cases: v.use_cases || [], voice_type: v.voice_type, models: v.models || [], preview_url: v.preview_url || null }));
     store.set('tts.voices.typecast', JSON.stringify(tcVoices));
     fillTcVoices(); renderCast();
-    showMessage('ok', `목소리 ${tcVoices.length}개를 불러왔어요. 위 성별·나이대·용도로 거르세요.`);
+    showMessage('ok', scriptMode === 'role' ? `목소리 ${tcVoices.length}개를 불러왔어요. 아래 배역 표에서 고르세요 (위 성별·나이대·용도 필터는 배역 표에는 적용되지 않습니다).` : `목소리 ${tcVoices.length}개를 불러왔어요. 위 성별·나이대·용도로 거르세요.`);
   } catch (e) { showError(e); }
   finally { $('tcLoad').disabled = false; }
 }
@@ -1126,6 +1147,28 @@ async function runGg(m, ctx, key, signal) {
 }
 
 /* ---------- 역할극 실행 ---------- */
+/* 화면의 글자 수 옆에 보여 줄 "몇 번에 나눠 보내나" — 실제 실행과 같은 묶기 규칙 */
+function roleRequestCount(m, parsed) {
+  const groups = groupLines(parsed.lines);
+  if (!groups.length) return 1;
+  if (m.id === 'eleven_v3') return packGroups(groups, 2000).length;
+  if (m.kind === 'tc') return packGroups(groups, 2000, 25).length;
+  if (m.kind === 'gg' && parsed.speakers.length === 2) return ggLineBatches(parsed.lines, m.maxChars, '').length;
+  return packGroups(groups, m.maxChars).flat().length;
+}
+function ggLineBatches(lines, maxChars, tag) {
+  const texts = lines.map((l) => `${l.speaker}: ${/^\s*\[/.test(l.text) ? '' : tag}${l.text}`);
+  const batches = []; let cur = [], len = 0;
+  for (const t of texts) { if (cur.length && len + t.length > maxChars) { batches.push(cur); cur = []; len = 0; } cur.push(t); len += t.length + 1; }
+  if (cur.length) batches.push(cur);
+  return batches;
+}
+/* 역할극용 연출 지시: 프리셋의 "한 사람 프로필" 블록은 빼고 지시문만 남긴 뒤, 배역 구분 지시를 붙인다 */
+function ggRoleNotes() {
+  let n = $('ggNotes').value.trim();
+  n = n.replace(/^# AUDIO PROFILE[\s\S]*?(?=## DIRECTOR'S NOTES|$)/, '').replace(/###\s*TRANSCRIPT\s*$/, '').trim();
+  return (n ? n + '\n' : '') + 'Make each speaker sound like a distinct person. Do not read speaker names or these notes aloud.';
+}
 /* 화자 덩어리를 한 요청 글자 한도(maxChars)에 맞춰 묶는다. 한 덩어리가 한도를 넘으면 같은 화자로 쪼갠다. */
 function packGroups(groups, maxChars, maxItems) {
   const batches = []; let cur = [], len = 0;
@@ -1185,18 +1228,22 @@ async function runTcRole(m, ctx, key, signal) {
   const blobs = []; let fellBack = false;
   for (let i = 0; i < batches.length; i++) {
     setStatus(batches.length > 1 ? `Typecast 대화 생성 중… (${i + 1}/${batches.length})` : 'Typecast가 대화를 만드는 중…', true);
+    const prevBatchSpeaker = i > 0 ? batches[i - 1][batches[i - 1].length - 1].speaker : null;
     const build = (smart) => {
       const segments = [];
       batches[i].forEach((b, j) => {
-        if (j > 0 && batches[i][j - 1].speaker !== b.speaker) segments.push({ type: 'pause', duration_seconds: TC_ROLE_PAUSE });
+        const before = j > 0 ? batches[i][j - 1].speaker : prevBatchSpeaker; // 묶음 경계에서도 화자가 바뀌면 쉼
+        if (before !== null && before !== b.speaker) segments.push({ type: 'pause', duration_seconds: TC_ROLE_PAUSE });
         segments.push({ type: 'tts', voice_id: rc.voices[b.speaker], text: b.text, model: m.id, language: 'kor', prompt: smart ? { emotion_type: 'smart' } : tcPromptFor(rc.voices[b.speaker]), output });
       });
       return { segments };
     };
+    const first = build(false);
+    const hadPreset = first.segments.some((x) => x.type === 'tts' && x.prompt.emotion_type === 'preset');
     let r;
-    try { r = await http(`${BASES.typecast}/v1/text-to-speech/compose`, { method: 'POST', headers: hdr, body: build(false), signal, raw: true }); }
+    try { r = await http(`${BASES.typecast}/v1/text-to-speech/compose`, { method: 'POST', headers: hdr, body: first, signal, raw: true }); }
     catch (e) {
-      if (!(e instanceof ApiError) || !(e.status === 400 || e.status === 422) || $('tcEmotion').value === 'smart') throw e;
+      if (!(e instanceof ApiError) || !(e.status === 400 || e.status === 422) || !hadPreset) throw e;
       fellBack = true;
       r = await http(`${BASES.typecast}/v1/text-to-speech/compose`, { method: 'POST', headers: hdr, body: build(true), signal, raw: true });
     }
@@ -1234,29 +1281,28 @@ async function ggGenerate(m, promptText, speechConfig, key, signal) {
 }
 async function runGgRole(m, ctx, key, signal) {
   const rc = roleCtx();
-  const notes = $('ggNotes').value.trim();
+  const notes = ggRoleNotes();
   const tag = (m.tags && $('ggFastTag').checked) ? '[very fast] ' : '';
   const pcm = []; let rate = 24000;
-  if (rc.speakers.length <= 2) {
-    // 구글 다중 화자: 한 요청에 2명까지. 대본은 "이름: 대사" 줄 그대로.
+  if (rc.speakers.length === 2) {
+    // 구글 다중 화자: 정확히 2명일 때 한 요청. 대본은 "이름: 대사" 줄 그대로, 지시문 뒤에 대본 표시를 둔다.
     const speechConfig = { languageCode: 'ko-KR', multiSpeakerVoiceConfig: { speakerVoiceConfigs: rc.speakers.map((sp) => ({ speaker: sp, voiceConfig: { prebuiltVoiceConfig: { voiceName: rc.voices[sp] } } })) } };
-    const lineTexts = rc.lines.map((l) => `${l.speaker}: ${tag}${l.text}`);
-    const batches = []; let cur = [], len = 0;
-    for (const t of lineTexts) { if (cur.length && len + t.length > m.maxChars) { batches.push(cur); cur = []; len = 0; } cur.push(t); len += t.length + 1; }
-    if (cur.length) batches.push(cur);
+    const batches = ggLineBatches(rc.lines, m.maxChars, tag);
     for (let i = 0; i < batches.length; i++) {
       setStatus(batches.length > 1 ? `구글 대화 생성 중… (${i + 1}/${batches.length})` : '구글이 대화를 만드는 중…', true);
       const head = `TTS the following conversation between ${rc.speakers.join(' and ')}:`;
-      const promptText = (notes ? notes + '\n' : '') + head + '\n' + batches[i].join('\n');
+      const promptText = notes + '\n' + head + '\n### TRANSCRIPT\n' + batches[i].join('\n');
       const out = await ggGenerate(m, promptText, speechConfig, key, signal);
       pcm.push(out.pcm); rate = out.rate;
     }
   } else {
+    // 1명 또는 3명 이상: 화자 덩어리마다 단일 화자 요청
     const items = packGroups(rc.groups, m.maxChars).flat();
     for (let i = 0; i < items.length; i++) {
       setStatus(`구글 생성 중… (${i + 1}/${items.length}) ${items[i].speaker}`, true);
       const speechConfig = { languageCode: 'ko-KR', voiceConfig: { prebuiltVoiceConfig: { voiceName: rc.voices[items[i].speaker] } } };
-      const out = await ggGenerate(m, ggPrompt(m, items[i].text), speechConfig, key, signal);
+      const t = (tag && !/^\s*\[/.test(items[i].text)) ? tag + items[i].text : items[i].text;
+      const out = await ggGenerate(m, notes + '\n### TRANSCRIPT\n' + t, speechConfig, key, signal);
       pcm.push(out.pcm); rate = out.rate;
     }
   }
