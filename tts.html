@@ -114,7 +114,7 @@
   <label for="apiKey"><span id="keyLabel">API 키</span> <span class="hint" id="keyHelp"></span></label>
   <div class="keyrow">
     <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="">
-    <button type="button" id="toggleKey" class="small">보기</button>
+    <button type="button" id="toggleKey" class="small" aria-pressed="false">보기</button>
     <button type="button" id="clearKey" class="small">지우기</button>
   </div>
   <label class="inline"><input type="checkbox" id="rememberKey"> 이 브라우저에 키 저장</label>
@@ -141,7 +141,7 @@
         <div><label for="libAge">나이대</label><select id="libAge"><option value="">전체</option><option value="young">젊음</option><option value="middle_aged">중년</option><option value="old">노년</option></select></div>
         <div><label for="libSearch">검색어</label><input id="libSearch" type="text" placeholder="예) energetic, youtube"></div>
       </div>
-      <div class="actions"><button type="button" id="libFind" class="small">찾기</button><span class="status" id="libStatus"></span></div>
+      <div class="actions"><button type="button" id="libFind" class="small">찾기</button><span class="status" id="libStatus" aria-live="polite"></span></div>
       <ul class="vlist" id="libList"></ul>
     </details>
 
@@ -155,7 +155,7 @@
       <div class="row">
         <div><label for="vdGuidance">설명 충실도 <span class="rangeval" id="vdGuidanceVal">5</span> <span class="hint">낮을수록 자연스럽고, 높을수록 설명에 딱 맞추지만 부자연스러울 수 있음</span></label><input id="vdGuidance" type="range" min="0" max="40" step="1" value="5"></div>
       </div>
-      <div class="actions"><button type="button" id="vdMake" class="small">후보 3개 만들기</button><span class="status" id="vdStatus"></span></div>
+      <div class="actions"><button type="button" id="vdMake" class="small">후보 3개 만들기</button><span class="status" id="vdStatus" aria-live="polite"></span></div>
       <ul class="vlist" id="vdList"></ul>
     </details>
   </div>
@@ -288,7 +288,7 @@
       <li><strong>감탄사·웃음</strong>: ElevenLabs v3와 구글은 대본 안에 <code>[laughs]</code> <code>[sighs]</code> <code>[gasp]</code> 같은 영어 태그를 넣습니다. Typecast는 태그가 없고 감정 프리셋·강도로 조절합니다.</li>
       <li><strong>질문형 어미</strong>: 어느 서비스도 억양을 직접 조절하는 수단이 없습니다. 물음표를 꼭 붙이고, 구글은 연출 지시에 "questions rise sharply at the end"를 둡니다.</li>
       <li><strong>비속어</strong>: 세 회사 모두 비속어 자체를 금지하는 조항은 없지만, 구글은 안전 필터에 걸려 거절될 수 있고 Typecast는 음란·성인 표현 생성을 금지합니다. 거절되면 그 부분만 순화해 다시 시도하세요.</li>
-      <li><strong>ElevenLabs Flash v2.5</strong>는 숫자·날짜를 기대대로 읽지 않을 수 있습니다. 숫자는 한글로 풀어 쓰세요. 긴 대본은 이 페이지가 ElevenLabs 5,000자·Typecast 2,000자씩 문장 단위로 나눠 보내고 이어 붙입니다.</li>
+      <li><strong>ElevenLabs Flash v2.5</strong>는 숫자·날짜를 기대대로 읽지 않을 수 있습니다. 숫자는 한글로 풀어 쓰세요. 긴 대본은 이 페이지가 모델 한도(v3 5,000자 · Flash 40,000자 · Multilingual 10,000자 · Typecast 2,000자)씩 문장 단위로 나눠 보내고 이어 붙입니다.</li>
     </ul>
   </details>
 
@@ -349,10 +349,10 @@ const MODELS = [
   { id: 'eleven_v3', provider: 'elevenlabs', kind: 'el', label: 'Eleven v3 (표현력 최고, 태그)', maxChars: 5000, tags: true,
     price: { usdPer1k: 0.10, creditPerChar: 1 }, priceText: '$0.10 / 1,000자 (1자 = 1크레딧)',
     note: '웃음·한숨·감탄을 [태그]로 넣을 수 있는 모델. 속도 슬라이더가 없어 목소리 선택과 [태그]로 빠르기를 잡습니다. 한 번에 5,000자.' },
-  { id: 'eleven_flash_v2_5', provider: 'elevenlabs', kind: 'el', label: 'Flash v2.5 (저렴·속도 조절)', maxChars: 5000, tags: false,
+  { id: 'eleven_flash_v2_5', provider: 'elevenlabs', kind: 'el', label: 'Flash v2.5 (저렴·속도 조절)', maxChars: 40000, tags: false,
     price: { usdPer1k: 0.05, creditPerChar: 0.5 }, priceText: '$0.05 / 1,000자 (1자 = 0.5크레딧)',
     note: '반값. 속도 0.7~1.2배 조절 가능. 태그는 안 되고, 숫자·날짜·전화번호를 기대대로 읽지 않을 수 있으니 한글로 풀어 쓰세요.' },
-  { id: 'eleven_multilingual_v2', provider: 'elevenlabs', kind: 'el', label: 'Multilingual v2 (안정)', maxChars: 5000, tags: false,
+  { id: 'eleven_multilingual_v2', provider: 'elevenlabs', kind: 'el', label: 'Multilingual v2 (안정)', maxChars: 10000, tags: false,
     price: { usdPer1k: 0.10, creditPerChar: 1 }, priceText: '$0.10 / 1,000자 (1자 = 1크레딧)',
     note: '긴 나레이션에 가장 안정적. 태그 없음, 속도 조절 가능.' },
   { id: 'ssfm-v30', provider: 'typecast', kind: 'tc', label: 'Typecast ssfm-v30', maxChars: 2000, tags: false,
@@ -1047,7 +1047,7 @@ function renderHistory() {
 /* ---------- 이벤트 ---------- */
 function bind() {
   $('model').addEventListener('change', () => { refreshOptions(); });
-  $('toggleKey').addEventListener('click', () => { const i = $('apiKey'); i.type = i.type === 'password' ? 'text' : 'password'; $('toggleKey').textContent = i.type === 'password' ? '보기' : '숨기기'; });
+  $('toggleKey').addEventListener('click', () => { const i = $('apiKey'); i.type = i.type === 'password' ? 'text' : 'password'; $('toggleKey').textContent = i.type === 'password' ? '보기' : '숨기기'; $('toggleKey').setAttribute('aria-pressed', String(i.type === 'text')); });
   $('clearKey').addEventListener('click', () => { const p = currentModel().provider; $('apiKey').value = ''; saveKey(p, '', false); clearStoredKey(p); $('rememberKey').checked = false; });
   $('rememberKey').addEventListener('change', () => { const p = currentModel().provider; saveKey(p, $('apiKey').value.trim(), $('rememberKey').checked); });
   $('apiKey').addEventListener('change', () => { const p = currentModel().provider; saveKey(p, $('apiKey').value.trim(), $('rememberKey').checked); });
