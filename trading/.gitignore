@@ -1,0 +1,7 @@
+config.yaml
+.env
+state/
+*.csv
+__pycache__/
+.pytest_cache/
+venv/
